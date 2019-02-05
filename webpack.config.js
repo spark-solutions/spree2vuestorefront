@@ -1,4 +1,5 @@
 const { resolve } = require('path')
+const webpack = require('webpack')
 const baseDirectoryPath = __dirname
 const srcDirectoryPath = resolve(baseDirectoryPath, 'src')
 const distDirectoryPath = resolve(baseDirectoryPath, 'dist')
@@ -8,7 +9,8 @@ const ProgressBar = require('./webpack-plugins/ProgressBar')
 module.exports = {
   context: baseDirectoryPath,
   plugins: [
-    new ProgressBar()
+    new ProgressBar(),
+    new webpack.BannerPlugin({ banner: '#!/usr/bin/env node', raw: true })
   ],
   externals: [
     nodeExternals()
@@ -60,6 +62,6 @@ module.exports = {
   },
   resolve: {
     symlinks: false,
-    extensions: ['.tsx', '.ts', '.js']
+    extensions: ['.ts', '.js', '.tsx']
   }
 }
