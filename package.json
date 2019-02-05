@@ -1,0 +1,33 @@
+{
+  "name": "spree2vuestorefront",
+  "version": "1.0.0",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "webpack",
+    "watch": "webpack --watch",
+    "lint:fix": "tslint src/**/*.ts --fix"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "@babel/core": "^7.2.2",
+    "@babel/plugin-proposal-class-properties": "^7.3.0",
+    "@babel/plugin-transform-runtime": "^7.2.0",
+    "@babel/preset-env": "^7.3.1",
+    "@babel/preset-typescript": "^7.1.0",
+    "@babel/runtime": "^7.3.1",
+    "@types/node": "^10.12.21",
+    "babel-loader": "^8.0.5",
+    "progress-bar-webpack-plugin": "^1.12.1",
+    "source-map-loader": "^0.2.4",
+    "ts-loader": "^5.3.3",
+    "tslint": "^5.12.1",
+    "typescript": "^3.3.1",
+    "webpack": "^4.29.1",
+    "webpack-cli": "^3.2.3",
+    "webpack-node-externals": "^1.7.2"
+  },
+  "dependencies": {
+    "commander": "^2.19.0",
+    "elasticsearch": "^15.3.1"
+  }
+}
