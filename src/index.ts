@@ -1,10 +1,9 @@
-/* tslint:disable:no-console */
-
 require('dotenv').config()
 const program = require('commander')
 import elasticsearch from 'elasticsearch'
 import { Client } from 'spree-storefront-api-v2-js-sdk'
 import importers from './importers'
+import { logger, mapPages } from './utils'
 
 const spreeOptions = {
   host: process.env.S_HOST,
@@ -17,6 +16,11 @@ const elasticSearchOptions = {
   index: process.env.ES_INDEX,
   logLevel: process.env.ES_LOG_LEVEL,
   requestTimeout: process.env.ES_REQUEST_TIMEOUT
+}
+
+const paginationOptions = {
+  maxPages: +process.env.MAX_PAGES,
+  perPage: +process.env.PER_PAGE
 }
 
 const getElasticClient = () => (
@@ -32,6 +36,11 @@ const getSpreeClient = () => (
   })
 )
 
+const preconfigMapPages = () => {
+  return (makePaginationRequest, resourceCallback) =>
+    mapPages(makePaginationRequest, resourceCallback, paginationOptions.perPage, paginationOptions.maxPages)
+}
+
 program.command('remove-everything')
   .action(() => {
     getElasticClient().indices.delete({
@@ -41,14 +50,14 @@ program.command('remove-everything')
 
 program.command('products')
   .action(() => {
-    importers.product(getSpreeClient(), getElasticClient(), elasticSearchOptions)
-      .catch(console.error)
+    logger.info('Importing products')
+    importers.product(getSpreeClient(), getElasticClient(), elasticSearchOptions, preconfigMapPages())
   })
 
 program.command('product [ids...]')
-  .action((ids) => {
+  .action((ids: string[]) => {
     if (ids.length === 0) {
-      console.error('at least one id requied')
+      logger.error('at least one id requied')
       process.exit(1)
     }
     getElasticClient().search({
@@ -60,21 +69,20 @@ program.command('product [ids...]')
         }
       },
       index: 'vue_storefront_catalog',
-      type: 'tax'
+      type: 'product'
     })
-      .then((products) => {
-        console.log(JSON.stringify(products.hits.hits, null, 2))
+      .then((products: any) => {
+        logger.info(products.hits.hits)
       })
   })
 
 program.on('command:*', () => {
-  console.error('Invalid command: %s\nSee --help for a list of available commands.', program.args.join(' '))
+  logger.error('Invalid command: %s\nSee --help for a list of available commands.', program.args.join(' '))
   process.exit(1)
 })
 
 // TODO: program.command('attributes')
 // TODO: program.command('categories')
-// TODO: command to fetch single product
 
 program
   .parse(process.argv)
