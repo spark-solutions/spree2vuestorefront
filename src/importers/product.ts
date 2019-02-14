@@ -1,16 +1,18 @@
-import { Document, JsonApiDocument, SpreeProductImage, JsonApiResponse } from '../interfaces'
+import {
+  Document,
+  JsonApiDocument,
+  JsonApiResponse,
+  OptionValueDocument,
+  PositionedDocument,
+  SpreeProductImage
+} from '../interfaces'
 import {
   findIncluded,
   findIncludedOfType,
-  getESMediaGallery,
   getImageUrl,
-  logger,
-  sendToElastic
+  getMediaGallery,
+  logger
 } from '../utils'
-
-// TODO: make importing resilient - try/catch any issues with product parsing and continue with next products or retry
-// TODO: ensure importing works when some relationships are missing
-// TODO: should elastic search be completely cleared on import?
 
 // productCustomAttributesPrefix is used as extra prefix to reduce the possibility of naming collisions with product
 // options and standard product fields.
@@ -20,7 +22,7 @@ const productOptionAttributePrefix = 'prodopt_'
 const generateOptionAttributeCode = (attributeIdentifier) => `${productOptionAttributePrefix}${attributeIdentifier}`
 const generateCustomAttributeCode = (attributeIdentifier) => `${productCustomAttributesPrefix}${attributeIdentifier}`
 
-const sortyByPositionAttribute = (a, b) => {
+const sortyByPositionAttribute = (a: PositionedDocument, b: PositionedDocument) => {
   if (a.attributes.position > b.attributes.position) { return 1 }
   if (a.attributes.position < b.attributes.position) { return -1 }
   return 0
@@ -29,16 +31,17 @@ const sortyByPositionAttribute = (a, b) => {
 const findOptionTypeFromOptionValue = (optionTypes: any[], optionValueId): any | null => {
   return optionTypes.find((optionType) => {
     const optionValues = optionType.relationships.option_values.data
-    return !!optionValues.find((optionValue) => {
+    return !!optionValues.find((optionValue: { id: string}) => {
       return optionValue.id === optionValueId
     })
   }) || null
 }
 
 const importProducts = (
-  spreeClient: any, elasticClient: any, elasticSearchOptions: any, preconfigMapPages: any
+  spreeClient: any,
+  getElasticBulkQueue: any,
+  preconfigMapPages: any
 ): void => {
-  const promises = []
   preconfigMapPages(
     (page: number, perPage: number) => (
       spreeClient.products.list({
@@ -49,47 +52,33 @@ const importProducts = (
     ),
     (response: JsonApiResponse) => {
       const product = response.data as JsonApiDocument
-      logger.info(`Importing product id=${product.id} from Spree to ES`)
       const relationships = product.relationships
       const defaultVariantIdentifier = relationships.default_variant.data
       const defaultVariant = findIncluded(response, defaultVariantIdentifier.type, defaultVariantIdentifier.id)
       const categoryIds = relationships.taxons.data.map((taxon: { id: string }) => taxon.id)
-
       const images = findIncludedOfType(response, product, 'images')
-
-      const mediaGallery = getESMediaGallery(images as SpreeProductImage[])
-
+      const mediaGallery = getMediaGallery(images as SpreeProductImage[])
       const hasOptions = relationships.option_types.data.length > 0
       const spreeProductProperies = findIncludedOfType(response, product, 'product_properties')
-      const productProperties = spreeProductProperies.reduce(
-        (acc, propertyRecord) => (
-          {
-            ...acc,
-            [generateCustomAttributeCode(propertyRecord.id)]: propertyRecord.attributes.value
-          }
-        ),
-        {}
-      )
+      const productProperties = spreeProductProperies.reduce((acc, propertyRecord) => {
+        acc[generateCustomAttributeCode(propertyRecord.id)] = propertyRecord.attributes.value
+        return acc
+      }, {})
 
       const spreeVariants = findIncludedOfType(response, product, 'variants')
-
       const optionTypes = findIncludedOfType(response, product, 'option_types')
 
       const variants = spreeVariants.map((spreeVariant) => {
-
         const variantImages = findIncludedOfType(response, spreeVariant, 'images')
 
         const variantOptions = spreeVariant.relationships.option_values.data.reduce((acc, ov) => {
           const optionType = findOptionTypeFromOptionValue(optionTypes, ov.id)
-
-          return {
-            ...acc,
-            [generateOptionAttributeCode(optionType.id)]: ov.id
-          }
+          acc[generateOptionAttributeCode(optionType.id)] = ov.id
+          return acc
         }, {})
 
         return {
-          image: getImageUrl(variantImages[0] as SpreeProductImage, 800, 800)  || '',
+          image: getImageUrl(variantImages[0] as SpreeProductImage, 800, 800) || '',
           priceInclTax: parseFloat(spreeVariant.attributes.price),
           sku: spreeVariant.attributes.sku,
           status: 1,
@@ -109,14 +98,14 @@ const importProducts = (
             attribute_code: generateOptionAttributeCode(optionType.id),
             label: optionType.attributes.presentation,
             values: optionType.relationships.option_values.data
-              .map((optionValue) => {
+              .map((optionValue: { id: string }) => {
                 // Some option values may not be provided when fetching a product - those which aren't used by the
                 // product. Don't save them in ES for the product.
                 return findIncluded(response, 'option_value', optionValue.id)
               })
-              .filter((maybOptionValueObj) => !!maybOptionValueObj)
+              .filter((maybeOptionValueObj: OptionValueDocument | undefined): boolean => !!maybeOptionValueObj)
               .sort(sortyByPositionAttribute)
-              .map((optionValueObj) => {
+              .map((optionValueObj: OptionValueDocument) => {
                 return {
                   label: optionValueObj.attributes.presentation,
                   value_index: optionValueObj.id
@@ -155,7 +144,7 @@ const importProducts = (
         // 0 - None, 2 - taxable Goods, 4 - Shipping, etc., depending on created tax classes.
         // In Magento, value of 1 is not used.
         tax_class_id: 2,
-        thumbnail: getImageUrl(images[0] as SpreeProductImage, 800, 800)/*  || '' */,
+        thumbnail: getImageUrl(images[0] as SpreeProductImage, 800, 800) || '',
         type_id: 'configurable',
         // created_at - not currently returned by Spree and not used by VS by default
         updated_at: product.attributes.updated_at, // used for sorting and filtering
@@ -165,11 +154,7 @@ const importProducts = (
         ...productProperties
       } as Document
 
-      promises.push(sendToElastic(elasticClient, elasticSearchOptions.index, 'product', esProduct))
-
-      // FIXME: fields in Spree not used in VS: currency (determined from i18n), display_price, available_on,
-      // meta_description & meta_keywords(not natively implemented in VS). Decide what
-      // to do with them.
+      getElasticBulkQueue.pushIndex('product', esProduct)
 
       const esAttributes = spreeProductProperies.map((propertyRecord) => {
         const id = generateCustomAttributeCode(propertyRecord.id)
@@ -185,12 +170,22 @@ const importProducts = (
       })
 
       esAttributes.forEach((attr) => {
-        promises.push(sendToElastic(elasticClient, elasticSearchOptions.index, 'attribute', attr))
+        getElasticBulkQueue.pushIndex('attribute', attr)
       })
-
-      Promise.all(promises).then(() => logger.info('All updates to ES finished.'))
     }
   )
+    .then(() => {
+      return getElasticBulkQueue.flush()
+      .then(({ errors }) => {
+        if (errors.length > 0) {
+          logger.error(['Some or all ES operations failed.', errors])
+        }
+      })
+      .catch((error) => {
+        logger.error(['Could not import product', error])
+      })
+    })
+    .catch(logger.error)
 }
 
 export default importProducts

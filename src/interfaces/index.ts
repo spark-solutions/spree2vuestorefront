@@ -23,7 +23,7 @@ export interface ImageStyle {
   height: string
 }
 
-export interface SpreeProductImage {
+export interface SpreeProductImage extends JsonApiDocument {
   attributes: {
     styles: ImageStyle[]
   }
@@ -34,4 +34,30 @@ export interface ESImage {
   lab: string | null,
   pos: number,
   typ: 'image'
+}
+
+export interface PositionedDocument extends JsonApiDocument {
+  attributes: {
+    position: number
+  }
+}
+
+export interface OptionValueDocument extends PositionedDocument {
+  attributes: {
+    position: number,
+    presentation: string
+  }
+}
+
+export interface ElasticOperation {
+  index?
+}
+
+export interface IndexOperation extends ElasticOperation {
+  index: {
+    _index: string,
+    _type: string,
+    _id: string,
+    _body: any
+  }
 }

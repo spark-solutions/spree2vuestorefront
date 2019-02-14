@@ -1022,19 +1022,9 @@ Intermediary layer for importing Spree catalogue and interacting with Spree. Pla
 
 TODO: how to translate custom attributes' labels in VS?
 
-TODO: add support for promotions from Spree
-
-TODO: add support for discontinue and available dates from Spree
-
-TODO: how to handle currently set for specific product in Spree?
-
 TODO: how to handle shipping category from Spree?
 
-TODO: use product tags from Spree
-
-TODO: optimize importing resources to Elastic Search - use `bulk` method (https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-bulk.html)
-
-TODO: why does the gallery not switch to image of variant when variant selected?
+TODO: what to do with the `available_on` attribute from Spree?
 
 ## Spree notes
 - If a Spree product has variants, the `default_variant` references one of the variants. Otherwise, `default_variant` contains the product information.
@@ -1049,6 +1039,7 @@ TODO: why does the gallery not switch to image of variant when variant selected?
   - product variants must be a list (can be empty)
 - The only fields required for custom attributes are: `attribute_code`, `is_user_defined=true`, `is_visible_on_front=true` and `is_visible=true`.
 - `configurable_options` in a product is not required if variants cannot be selected with options.
+- To change the currency symbol for products displayed by VS (non-multistore), modify config/local.json. The option `i18n` contains `currency*` options.
 
 ## VS and VS-api bugs/limitations
 - Can't show incomplete variants (not all option combinations covered).
@@ -1057,6 +1048,7 @@ TODO: why does the gallery not switch to image of variant when variant selected?
 - In default Spree, only images of currently selected product variant are visible at one time. In VS, the images from all variants are merged into a single gallery.
 - VS doesn't support an order key for options or option values. So instead arrays of options and option values should be ordered before being imported to Elastic Search.
 - Bug: setting attributes for a product inside `custom_attributes` is completely ignored when `useDynamicAttributeLoader: true` in VS configuration. `custom_attributes` are pushed onto product anyway, so it doesn't have to be used.
+- `meta_description` and `meta_keywords` for Spree products aren't consumed by VS. The Spree currency field inside products is currently ignored.
 
 References:
 - [https://github.com/DivanteLtd/vue-storefront-integration-boilerplate/blob/master/3.%20Configure%20vue-storefront/How%20to%20configure%20Vue%20Storefront.md](https://github.com/DivanteLtd/vue-storefront-integration-boilerplate/blob/master/3.%20Configure%20vue-storefront/How%20to%20configure%20Vue%20Storefront.md)
