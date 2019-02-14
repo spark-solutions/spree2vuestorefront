@@ -94,7 +94,9 @@ const importProducts = (
           sku: spreeVariant.attributes.sku,
           status: 1,
           stock: {
-            is_in_stock: spreeVariant.attributes.in_stock || spreeVariant.attributes.backorderable
+            is_in_stock:
+              spreeVariant.attributes.purchasable &&
+              (spreeVariant.attributes.in_stock || spreeVariant.attributes.backorderable)
           },
           ...variantOptions
         }
@@ -145,7 +147,9 @@ const importProducts = (
         // uses 0 instead of 1)
         status: 1,
         stock: {
-          is_in_stock: defaultVariant.attributes.in_stock || defaultVariant.attributes.backorderable
+          is_in_stock:
+            defaultVariant.attributes.purchasable &&
+            (defaultVariant.attributes.in_stock || defaultVariant.attributes.backorderable)
         },
         // tax_class_id - Tax class from Magento. Can have the following values:
         // 0 - None, 2 - taxable Goods, 4 - Shipping, etc., depending on created tax classes.
@@ -164,7 +168,7 @@ const importProducts = (
       promises.push(sendToElastic(elasticClient, elasticSearchOptions.index, 'product', esProduct))
 
       // FIXME: fields in Spree not used in VS: currency (determined from i18n), display_price, available_on,
-      // meta_description & meta_keywords(not natively implemented in VS), purchasable. Decide what
+      // meta_description & meta_keywords(not natively implemented in VS). Decide what
       // to do with them.
 
       const esAttributes = spreeProductProperies.map((propertyRecord) => {
