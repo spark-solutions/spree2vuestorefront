@@ -26,6 +26,7 @@ const logger = winston.createLogger({
 })
 
 const sendToElastic = (elasticClient, index: string, type: string, document: Document) => {
+  console.log('send', document.id)
   return elasticClient.index({
     body: document,
     id: document.id,
