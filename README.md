@@ -1049,6 +1049,7 @@ TODO: what to do with the `available_on` attribute from Spree?
 - VS doesn't support an order key for options or option values. So instead arrays of options and option values should be ordered before being imported to Elastic Search.
 - Bug: setting attributes for a product inside `custom_attributes` is completely ignored when `useDynamicAttributeLoader: true` in VS configuration. `custom_attributes` are pushed onto product anyway, so it doesn't have to be used.
 - `meta_description` and `meta_keywords` for Spree products aren't consumed by VS. The Spree currency field inside products is currently ignored.
+- VS-api doesn't properly handle queries to Elastic Search which contain `term` values containing `-` (dash). It must be avoided in ES fields, such as `url_key` and `attribute_code`.
 
 References:
 - [https://github.com/DivanteLtd/vue-storefront-integration-boilerplate/blob/master/3.%20Configure%20vue-storefront/How%20to%20configure%20Vue%20Storefront.md](https://github.com/DivanteLtd/vue-storefront-integration-boilerplate/blob/master/3.%20Configure%20vue-storefront/How%20to%20configure%20Vue%20Storefront.md)
