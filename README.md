@@ -1036,7 +1036,7 @@ TODO: what to do with the `available_on` attribute from Spree?
   - product has options
   - product has variants
 - Effects of using `type_id: "configurable"`:
-  - product variants must be a list (can be empty)
+  - product variants must be a list (cannot be empty, because VS-api skips returning empty lists and that causes JS errors in VS)
 - The only fields required for custom attributes are: `attribute_code`, `is_user_defined=true`, `is_visible_on_front=true` and `is_visible=true`.
 - `configurable_options` in a product is not required if variants cannot be selected with options.
 - To change the currency symbol for products displayed by VS (non-multistore), modify config/local.json. The option `i18n` contains `currency*` options.
