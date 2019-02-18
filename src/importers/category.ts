@@ -1,14 +1,9 @@
 import { JsonApiDocument, JsonApiResponse } from '../interfaces'
-import {
-  logger,
-  sendToElastic
-} from '../utils'
+import { logger } from '../utils'
 
 const importCategories = (
-  spreeClient: any, elasticClient: any, elasticSearchOptions: any, preconfigMapPages: any
+  spreeClient: any, getElasticBulkQueue: any, preconfigMapPages: any
 ): void => {
-  const promises = []
-
   preconfigMapPages(
     (page: number, perPage: number) => (
       spreeClient.taxons.list({
@@ -46,7 +41,7 @@ const importCategories = (
       }
 
       const esCategory = () => {
-        const categoryChilds = taxonChilds();
+        const categoryChilds = taxonChilds()
 
         return {
           parent_id: relationships.parent.data && relationships.parent.data.id || 1,
@@ -64,9 +59,21 @@ const importCategories = (
         }
       }
 
-      promises.push(sendToElastic(elasticClient, elasticSearchOptions.index, 'category', esCategory()))
+      getElasticBulkQueue.pushIndex('category', esCategory())
     }
   )
+    .then(() => {
+      return getElasticBulkQueue.flush()
+      .then(({ errors }) => {
+        if (errors.length > 0) {
+          logger.error(['Some or all ES operations failed.', errors])
+        }
+      })
+      .catch((error) => {
+        logger.error(['Could not import category', error])
+      })
+    })
+    .catch(logger.error)
 }
 
 export default importCategories
