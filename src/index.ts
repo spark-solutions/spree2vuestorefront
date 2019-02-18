@@ -1,9 +1,16 @@
-require('dotenv').config()
-const program = require('commander')
+import * as program from 'commander'
+import { config } from 'dotenv'
 import elasticsearch from 'elasticsearch'
 import { Client } from 'spree-storefront-api-v2-js-sdk'
 import importers from './importers'
-import { logger, mapPages } from './utils'
+import {
+  flushElastic,
+  logger,
+  mapPages,
+  pushElasticIndex
+} from './utils'
+
+config()
 
 const spreeOptions = {
   host: process.env.S_HOST,
@@ -12,6 +19,7 @@ const spreeOptions = {
 }
 
 const elasticSearchOptions = {
+  bulkSize: +process.env.ES_BULK_SIZE,
   host: process.env.ES_HOST,
   index: process.env.ES_INDEX,
   logLevel: process.env.ES_LOG_LEVEL,
@@ -30,16 +38,39 @@ const getElasticClient = () => (
   })
 )
 
+const getElasticBulkQueue = () => {
+  const elasticClient = getElasticClient()
+  let pendingOperations = Promise.resolve({ errors: [], operations: [], operationsCount: 0 })
+  return {
+    flush: () => {
+      pendingOperations = flushElastic(
+        elasticClient,
+        pendingOperations
+      )
+      return pendingOperations
+    },
+    pushIndex: (type, document) => {
+      pendingOperations = pushElasticIndex(
+        elasticClient,
+        pendingOperations,
+        elasticSearchOptions.bulkSize,
+        elasticSearchOptions.index,
+        type,
+        document
+      )
+      return pendingOperations
+    }
+  }
+}
+
 const getSpreeClient = () => (
   Client({
     host: spreeOptions.host + '/'
   })
 )
 
-const preconfigMapPages = () => {
-  return (makePaginationRequest, resourceCallback) =>
-    mapPages(makePaginationRequest, resourceCallback, paginationOptions.perPage, paginationOptions.maxPages)
-}
+const preconfigMapPages = (makePaginationRequest, resourceCallback) =>
+  mapPages(makePaginationRequest, resourceCallback, paginationOptions.perPage, paginationOptions.maxPages)
 
 program.command('remove-everything')
   .action(() => {
@@ -51,13 +82,13 @@ program.command('remove-everything')
 program.command('products')
   .action(() => {
     logger.info('Importing products')
-    importers.product(getSpreeClient(), getElasticClient(), elasticSearchOptions, preconfigMapPages())
+    importers.product(getSpreeClient(), getElasticBulkQueue(), preconfigMapPages)
   })
 
 program.command('product [ids...]')
   .action((ids: string[]) => {
     if (ids.length === 0) {
-      logger.error('at least one id requied')
+      logger.error('at least one id required')
       process.exit(1)
     }
     getElasticClient().search({

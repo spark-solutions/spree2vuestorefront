@@ -1,6 +1,7 @@
 import * as winston from 'winston'
 import {
   Document,
+  ElasticOperation,
   ESImage,
   ImageStyle,
   JsonApiDocument,
@@ -25,15 +26,6 @@ const logger = winston.createLogger({
   ]
 })
 
-const sendToElastic = (elasticClient, index: string, type: string, document: Document) => {
-  return elasticClient.index({
-    body: document,
-    id: document.id,
-    index,
-    type
-  })
-}
-
 const getImageUrl = (image: SpreeProductImage, minWidth: number, _: number): string | null => {
   // every image is still resized in vue-storefront-api, no matter what getImageUrl returns
   if (image) {
@@ -56,14 +48,13 @@ const getImageUrl = (image: SpreeProductImage, minWidth: number, _: number): str
     }, null)
 
     if (bestStyleIndex !== null) {
-      logger.info(['Using image: ', styles[bestStyleIndex]])
       return styles[bestStyleIndex].url
     }
   }
   return null
 }
 
-const getESMediaGallery = (images: SpreeProductImage[]): ESImage[] => {
+const getMediaGallery = (images: SpreeProductImage[]): ESImage[] => {
   return images.reduce(
     (acc, _, imageIndex) => {
       const imageUrl = getImageUrl(images[imageIndex], 800, 800)
@@ -96,7 +87,7 @@ const findIncluded = (response: JsonApiResponse, objectType: string, objectId: s
 
 const findIncludedOfType = (
   response: JsonApiResponse, singlePrimaryRecord: JsonApiDocument, objectType: string
-): any[] => {
+): JsonApiDocument[] => {
   if (!response.included) {
     return []
   }
@@ -109,14 +100,13 @@ const findIncludedOfType = (
     .filter((typeRecord: JsonApiDocument | null) => !!typeRecord)
 }
 
-// TODO: makePaginationRequest returns commands for ES that are optimized before sending
 const mapPages = (
   makePaginationRequest: (page: number, perPage: number) => Promise<JsonApiResponse>,
   resourceCallback: (response: JsonApiResponse) => any,
   perPage: number,
   maxPages: number
-): Promise<any[]> => {
-  return new Promise((resolve, _) => {
+): Promise<any> => {
+  return new Promise((resolve, reject) => {
     // Assume new requests don't need old 'included' from old responses.
     const handlePage = (page: number) => {
       if (page >= maxPages) {
@@ -125,8 +115,8 @@ const mapPages = (
       } else {
         makePaginationRequest(page, perPage)
           .then((response) => {
-            logger.info(`Page nr ${page} downloaded, processing`)
             const responseResources = response.data as JsonApiDocument[]
+            logger.info(`Downloaded page ${page} containing ${responseResources.length} resources, processing`)
             responseResources.map((resource: JsonApiDocument, resourceIndex: number) => {
               try {
                 resourceCallback({
@@ -147,12 +137,112 @@ const mapPages = (
               resolve()
             }
           })
+          .catch(reject)
       }
     }
     handlePage(0)
   })
 }
 
-// optimizeESBulk
+type ESBulkPromise = Promise<{ errors: any[], operations: ElasticOperation[], operationsCount: number }>
 
-export { sendToElastic, getImageUrl, getESMediaGallery, findIncluded, findIncludedOfType, logger, mapPages }
+const pushElasticIndex = (
+  elasticClient,
+  pendingOperations: ESBulkPromise,
+  maxOperationsPerBulk: number,
+  index: string,
+  type: string,
+  document: Document
+): ESBulkPromise => {
+  return pendingOperations
+    .then(({ errors, operations, operationsCount}) => {
+      const expectedOperationsCount = operationsCount + 1
+      if (expectedOperationsCount > maxOperationsPerBulk) {
+        return pushElasticIndex(
+          elasticClient,
+          Promise.resolve({
+            errors,
+            operations: operations.slice(0, maxOperationsPerBulk),
+            operationsCount
+          }),
+          maxOperationsPerBulk,
+          index,
+          type,
+          document
+        )
+          .then(({ errors: updatedErrors }) => {
+            return pushElasticIndex(
+              elasticClient,
+              Promise.resolve({
+                errors: updatedErrors,
+                operations: operations.slice(maxOperationsPerBulk),
+                operationsCount: operationsCount - maxOperationsPerBulk
+              }),
+              maxOperationsPerBulk,
+              index,
+              type,
+              document
+            )
+          })
+      }
+      const updatedOperations = [
+        ...operations,
+        {
+          index: {
+            _id: document.id,
+            _index: index,
+            _type: type
+          }
+        },
+        document
+      ] as ElasticOperation[]
+      if (expectedOperationsCount === maxOperationsPerBulk) {
+        return flushElastic(
+          elasticClient,
+          Promise.resolve({
+            errors,
+            operations: updatedOperations,
+            operationsCount: expectedOperationsCount
+          })
+        )
+      }
+      return Promise.resolve({
+        errors,
+        operations: updatedOperations,
+        operationsCount: expectedOperationsCount
+      })
+    })
+}
+
+const flushElastic = (
+  elasticClient,
+  pendingOperations: ESBulkPromise
+): ESBulkPromise => {
+  return pendingOperations
+    .then(({ errors, operations, operationsCount }) => {
+      if (operationsCount === 0) {
+        return pendingOperations
+      }
+      return elasticClient.bulk({ body: operations })
+        .then((response) => {
+          return {
+            errors: response.errors ?
+              [...errors, response.items.filter((item: any) => !!item[Object.keys(item)[0]].error)]
+              : errors,
+            operations: [],
+            operationsCount: 0
+          }
+        })
+    })
+}
+
+export {
+  findIncluded,
+  findIncludedOfType,
+  flushElastic,
+  getImageUrl,
+  getMediaGallery,
+  logger,
+  mapPages,
+  pushElasticIndex
+}
