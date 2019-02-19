@@ -1,5 +1,5 @@
 import { JsonApiDocument, JsonApiResponse } from '../interfaces'
-import { logger } from '../utils'
+import { findIncludedOfType, logger } from '../utils'
 
 const importCategories = (
   spreeClient: any, getElasticBulkQueue: any, preconfigMapPages: any
@@ -7,7 +7,7 @@ const importCategories = (
   preconfigMapPages(
     (page: number, perPage: number) => (
       spreeClient.taxons.list({
-        include: 'parent,taxonomy,children,image,products',
+        include: 'parent,taxonomy,children,image',
         page,
         per_page: perPage
       })
@@ -17,38 +17,29 @@ const importCategories = (
       logger.info(`Importing category id=${category.id} from Spree to ES`)
 
       const relationships = category.relationships
-      const included = response.included
 
-      const taxonChilds = () => {
-        return relationships.children.data.map((obj) => {
-          const children = included.find((item) => {
-            return item.id === obj.id && item.type === 'taxon'
-          })
+      const taxonChilds = (categoryNode) => {
+        const taxons = findIncludedOfType(response, categoryNode, 'children')
 
-          if (!children) {
-            return []
-          }
-
+        return taxons.map((obj) => {
           return {
-            children_count: children.relationships.children.data.length,
-            children_data: [],
-            id: children.id,
+            children_count: obj.relationships.children.data.length,
+            children_data: taxonChilds(obj),
+            id: obj.id,
             include_in_menu: 1,
-            name: children.attributes.name,
-            parent_id: children.relationships.parent.data.id,
-            position: children.attributes.position,
-            url_key: children.attributes.permalink
+            name: obj.attributes.name,
+            parent_id: obj.relationships.parent.data.id,
+            position: obj.attributes.position,
+            url_key: obj.attributes.permalink
           }
         })
       }
 
       const esCategory = () => {
-        const categoryChilds = taxonChilds()
-
         return {
           available_sort_by: null,
           children_count: relationships.children.data.length,
-          children_data: categoryChilds,
+          children_data: taxonChilds(category),
           id: category.id,
           include_in_menu: 1,
           is_active: true,
