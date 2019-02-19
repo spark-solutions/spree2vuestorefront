@@ -145,7 +145,7 @@ const importProducts = (
         // In Magento, value of 1 is not used.
         tax_class_id: 2,
         thumbnail: getImageUrl(images[0] as SpreeProductImage, 800, 800) || '',
-        type_id: 'configurable',
+        type_id: variants.length === 0 ? 'simple' : 'configurable',
         // created_at - not currently returned by Spree and not used by VS by default
         updated_at: product.attributes.updated_at, // used for sorting and filtering
         // visibility. From Magento: 1 - Visible Individually, 2 - catalog, 3 - search, 4 - catalog & search
