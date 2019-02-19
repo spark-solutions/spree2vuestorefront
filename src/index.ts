@@ -85,6 +85,12 @@ program.command('products')
     importers.product(getSpreeClient(), getElasticBulkQueue(), preconfigMapPages)
   })
 
+program.command('categories')
+  .action(() => {
+    logger.info('Importing categories')
+    importers.category(getSpreeClient(), getElasticBulkQueue(), preconfigMapPages)
+  })
+
 program.command('product [ids...]')
   .action((ids: string[]) => {
     if (ids.length === 0) {
