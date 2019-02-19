@@ -45,7 +45,7 @@ const importProducts = (
   preconfigMapPages(
     (page: number, perPage: number) => (
       spreeClient.products.list({
-        include: 'default_variant,images,option_types,product_properties,variants,variants.option_values',
+        include: 'default_variant,images,option_types,product_properties,variants,variants.option_values,taxons',
         page,
         per_page: perPage
       })
@@ -55,7 +55,6 @@ const importProducts = (
       const relationships = product.relationships
       const defaultVariantIdentifier = relationships.default_variant.data
       const defaultVariant = findIncluded(response, defaultVariantIdentifier.type, defaultVariantIdentifier.id)
-      const categoryIds = relationships.taxons.data.map((taxon: { id: string }) => taxon.id)
       const images = findIncludedOfType(response, product, 'images')
       const mediaGallery = getMediaGallery(images as SpreeProductImage[])
       const hasOptions = relationships.option_types.data.length > 0
@@ -118,12 +117,23 @@ const importProducts = (
         })
 
       const price = parseFloat(defaultVariant.attributes.price)
+      const categories = findIncludedOfType(response, product, 'taxons')
 
       const esProduct = {
-        category: categoryIds,
-        category_ids: categoryIds,
+        // category - used for product lists (query.newProducts in config),
+        // such as default "Everything new" on homepage when filterFieldMapping has
+        // "category.name": "category.name.keyword" and for limiting search to category.
+        category: categories.map((category) => (
+          {
+            category_id: +category.id,
+            name: category.attributes.name
+          }
+        )),
+        category_ids: categories.map((category) => +category.id),
         configurable_children: variants,
         configurable_options: configurableOptions,
+        // created_at - Spree doesn't return created date, use available_on as replacement
+        created_at: product.attributes.available_on,
         description: defaultVariant.attributes.description,
         final_price: price, // 'final_price' field is used when filtering products in a category
         has_options: hasOptions, // easy way of checking if variants have selectable options
@@ -152,7 +162,6 @@ const importProducts = (
         tax_class_id: 2,
         thumbnail: getImageUrl(images[0] as SpreeProductImage, 800, 800) || '',
         type_id: variants.length === 0 ? 'simple' : 'configurable',
-        // created_at - not required but can be used for sorting lists, ex. new products list on homepage
         updated_at: product.attributes.updated_at, // used for sorting and filtering
         // visibility. From Magento: 1 - Visible Individually, 2 - catalog, 3 - search, 4 - catalog & search
         visibility: 4,
