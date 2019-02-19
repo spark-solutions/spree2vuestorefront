@@ -77,9 +77,12 @@ const importProducts = (
           return acc
         }, {})
 
+        const variantPrice = parseFloat(spreeVariant.attributes.price)
+
         return {
+          final_price: variantPrice,
           image: getImageUrl(variantImages[0] as SpreeProductImage, 800, 800) || '',
-          priceInclTax: parseFloat(spreeVariant.attributes.price),
+          priceInclTax: variantPrice,
           sku: spreeVariant.attributes.sku,
           status: 1,
           stock: {
@@ -114,12 +117,15 @@ const importProducts = (
           }
         })
 
+      const price = parseFloat(defaultVariant.attributes.price)
+
       const esProduct = {
         category: categoryIds,
         category_ids: categoryIds,
         configurable_children: variants,
         configurable_options: configurableOptions,
         description: defaultVariant.attributes.description,
+        final_price: price, // 'final_price' field is used when filtering products in a category
         has_options: hasOptions, // easy way of checking if variants have selectable options
         id: product.id,
         image: getImageUrl(images[0] as SpreeProductImage, 800, 800) || '',
@@ -127,7 +133,7 @@ const importProducts = (
         name: defaultVariant.attributes.name,
         news_from_date: null, // start date for when product is "in the news" (featured)
         news_to_date: null, // end date for when product is "in the news" (featured)
-        priceInclTax: parseFloat(defaultVariant.attributes.price),
+        priceInclTax: price,
         sku: defaultVariant.attributes.sku,
         special_from_date: null, // promotion price start date
         special_price: null, // price during promotion (discounted product price)
@@ -146,7 +152,7 @@ const importProducts = (
         tax_class_id: 2,
         thumbnail: getImageUrl(images[0] as SpreeProductImage, 800, 800) || '',
         type_id: variants.length === 0 ? 'simple' : 'configurable',
-        // created_at - not currently returned by Spree and not used by VS by default
+        // created_at - not required but can be used for sorting lists, ex. new products list on homepage
         updated_at: product.attributes.updated_at, // used for sorting and filtering
         // visibility. From Magento: 1 - Visible Individually, 2 - catalog, 3 - search, 4 - catalog & search
         visibility: 4,
