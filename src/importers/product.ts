@@ -77,6 +77,15 @@ const importProducts = (
         }, {})
 
         const variantPrice = parseFloat(spreeVariant.attributes.price)
+        const variantMediaGallery = getMediaGallery(variantImages as SpreeProductImage[]).reduce((a, { image }, pi) => {
+          if (pi === 0) {
+            return a
+          }
+          return {
+            ...a,
+            [`image${pi + 1}`]: image
+          }
+        }, {})
 
         return {
           final_price: variantPrice,
@@ -89,7 +98,8 @@ const importProducts = (
               spreeVariant.attributes.purchasable &&
               (spreeVariant.attributes.in_stock || spreeVariant.attributes.backorderable)
           },
-          ...variantOptions
+          ...variantOptions,
+          ...variantMediaGallery
         }
       })
 

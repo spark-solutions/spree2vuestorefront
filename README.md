@@ -1050,6 +1050,8 @@ TODO: what to do with the `available_on` attribute from Spree?
 - Bug: setting attributes for a product inside `custom_attributes` is completely ignored when `useDynamicAttributeLoader: true` in VS configuration. `custom_attributes` are pushed onto product anyway, so it doesn't have to be used.
 - `meta_description` and `meta_keywords` for Spree products aren't consumed by VS. The Spree currency field inside products is currently ignored.
 - VS-api doesn't properly handle queries to Elastic Search which contain `term` values containing `-` (dash). It must be avoided in ES fields, such as `url_key` and `attribute_code`.
+- Variants cannot have `media_gallery`, but a workaround is possible. Setting
+`"gallery": { "mergeConfigurableChildren": false, "imageAttributes": [ "image",  "image1", "image2", "image3", "image4", "image5", "thumbnail", "small_image"]}` and putting images in `image`, `image1`... will cause a gallery creation from multiple images in variants.
 
 References:
 - [https://github.com/DivanteLtd/vue-storefront-integration-boilerplate/blob/master/3.%20Configure%20vue-storefront/How%20to%20configure%20Vue%20Storefront.md](https://github.com/DivanteLtd/vue-storefront-integration-boilerplate/blob/master/3.%20Configure%20vue-storefront/How%20to%20configure%20Vue%20Storefront.md)
