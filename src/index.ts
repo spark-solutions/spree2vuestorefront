@@ -3,6 +3,7 @@ import { config } from 'dotenv'
 import elasticsearch from 'elasticsearch'
 import { Client } from 'spree-storefront-api-v2-js-sdk'
 import importers from './importers'
+import server from './server'
 import {
   flushElastic,
   logger,
@@ -32,7 +33,7 @@ const paginationOptions = {
 }
 
 const getElasticClient = () => (
-  elasticsearch.Client({
+  new elasticsearch.Client({
     host: elasticSearchOptions.host,
     log: elasticSearchOptions.logLevel
   })
@@ -113,13 +114,16 @@ program.command('product [ids...]')
       })
   })
 
+program.command('api-server')
+  .action(() => {
+    logger.info('Starting API server')
+    server(getSpreeClient())
+  })
+
 program.on('command:*', () => {
   logger.error('Invalid command: %s\nSee --help for a list of available commands.', program.args.join(' '))
   process.exit(1)
 })
-
-// TODO: program.command('attributes')
-// TODO: program.command('categories')
 
 program
   .parse(process.argv)

@@ -1026,6 +1026,8 @@ TODO: how to handle shipping category from Spree?
 
 TODO: what to do with the `available_on` attribute from Spree?
 
+TODO: whitelist incoming hosts requesting Express server
+
 ## Spree notes
 - If a Spree product has variants, the `default_variant` references one of the variants. Otherwise, `default_variant` contains the product information.
 - When a new option type is added to a product, existing variants won't show it in the front-end, because they don't have a value set for it and there's no default picked by Spree.

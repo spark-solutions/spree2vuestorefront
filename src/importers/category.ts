@@ -1,15 +1,18 @@
+import Instance from 'spree-storefront-api-v2-js-sdk/src/Instance'
 import { JsonApiDocument, JsonApiResponse } from '../interfaces'
 import { logger } from '../utils'
 
 const importCategories = (
-  spreeClient: any, getElasticBulkQueue: any, preconfigMapPages: any
+  spreeClient: Instance, getElasticBulkQueue: any, preconfigMapPages: any
 ): void => {
   preconfigMapPages(
     (page: number, perPage: number) => (
       spreeClient.taxons.list({
-        include: 'parent,taxonomy,children,image,products',
-        page,
-        per_page: perPage
+        params: {
+          include: 'parent,taxonomy,children,image,products',
+          page,
+          per_page: perPage
+        }
       })
     ),
     (response: JsonApiResponse) => {

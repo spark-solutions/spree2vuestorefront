@@ -1,3 +1,4 @@
+import { IToken } from 'spree-storefront-api-v2-js-sdk/src/interfaces/Token'
 import * as winston from 'winston'
 import {
   Document,
@@ -5,6 +6,7 @@ import {
   ESImage,
   ImageStyle,
   JsonApiDocument,
+  JsonApiListResponse,
   JsonApiResponse,
   SpreeProductImage
 } from '../interfaces'
@@ -101,7 +103,7 @@ const findIncludedOfType = (
 }
 
 const mapPages = (
-  makePaginationRequest: (page: number, perPage: number) => Promise<JsonApiResponse>,
+  makePaginationRequest: (page: number, perPage: number) => Promise<JsonApiListResponse>,
   resourceCallback: (response: JsonApiResponse) => any,
   perPage: number,
   maxPages: number
@@ -124,6 +126,7 @@ const mapPages = (
                   included: response.included
                 })
               } catch (error) {
+                console.error(error)
                 logger.error(
                   ['Resource import error', { page, per_page: perPage, resourcePageIndex: resourceIndex }, error]
                 )
@@ -236,13 +239,33 @@ const flushElastic = (
     })
 }
 
+const getTokenOptions = (request): IToken => {
+  const tokenOptions: IToken = {}
+
+  const bearerToken = request.query.token
+  const orderToken = request.query.cartId
+
+  if (bearerToken) {
+    tokenOptions.bearerToken = bearerToken
+  }
+
+  if (orderToken) {
+    tokenOptions.orderToken = orderToken
+  }
+
+  return tokenOptions
+}
+
 export {
   findIncluded,
   findIncludedOfType,
   flushElastic,
   getImageUrl,
   getMediaGallery,
+  getTokenOptions,
   logger,
   mapPages,
   pushElasticIndex
 }
+
+export * from './product'

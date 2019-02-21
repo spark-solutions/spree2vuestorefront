@@ -1,5 +1,7 @@
+import Instance from 'spree-storefront-api-v2-js-sdk/src/Instance'
 import {
   Document,
+  ESProductType,
   JsonApiDocument,
   JsonApiResponse,
   OptionValueDocument,
@@ -9,18 +11,13 @@ import {
 import {
   findIncluded,
   findIncludedOfType,
+  findOptionTypeFromOptionValue,
+  generateCustomAttributeCode,
+  generateOptionAttributeCode,
   getImageUrl,
   getMediaGallery,
   logger
 } from '../utils'
-
-// productCustomAttributesPrefix is used as extra prefix to reduce the possibility of naming collisions with product
-// options and standard product fields.
-const productCustomAttributesPrefix = 'prodattr_'
-const productOptionAttributePrefix = 'prodopt_'
-
-const generateOptionAttributeCode = (attributeIdentifier) => `${productOptionAttributePrefix}${attributeIdentifier}`
-const generateCustomAttributeCode = (attributeIdentifier) => `${productCustomAttributesPrefix}${attributeIdentifier}`
 
 const sortyByPositionAttribute = (a: PositionedDocument, b: PositionedDocument) => {
   if (a.attributes.position > b.attributes.position) { return 1 }
@@ -28,26 +25,19 @@ const sortyByPositionAttribute = (a: PositionedDocument, b: PositionedDocument) 
   return 0
 }
 
-const findOptionTypeFromOptionValue = (optionTypes: any[], optionValueId): any | null => {
-  return optionTypes.find((optionType) => {
-    const optionValues = optionType.relationships.option_values.data
-    return !!optionValues.find((optionValue: { id: string}) => {
-      return optionValue.id === optionValueId
-    })
-  }) || null
-}
-
 const importProducts = (
-  spreeClient: any,
+  spreeClient: Instance,
   getElasticBulkQueue: any,
   preconfigMapPages: any
 ): void => {
   preconfigMapPages(
     (page: number, perPage: number) => (
       spreeClient.products.list({
-        include: 'default_variant,images,option_types,product_properties,variants,variants.option_values,taxons',
-        page,
-        per_page: perPage
+        params: {
+          include: 'default_variant,images,option_types,product_properties,variants,variants.option_values,taxons',
+          page,
+          per_page: perPage
+        }
       })
     ),
     (response: JsonApiResponse) => {
@@ -161,7 +151,7 @@ const importProducts = (
         // In Magento, value of 1 is not used.
         tax_class_id: 2,
         thumbnail: getImageUrl(images[0] as SpreeProductImage, 800, 800) || '',
-        type_id: variants.length === 0 ? 'simple' : 'configurable',
+        type_id: variants.length === 0 ? ESProductType.Simple : ESProductType.Configurable,
         updated_at: product.attributes.updated_at, // used for sorting and filtering
         // visibility. From Magento: 1 - Visible Individually, 2 - catalog, 3 - search, 4 - catalog & search
         visibility: 4,
