@@ -246,3 +246,5 @@ export {
   mapPages,
   pushElasticIndex
 }
+
+export * from './product'
