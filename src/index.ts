@@ -118,8 +118,5 @@ program.on('command:*', () => {
   process.exit(1)
 })
 
-// TODO: program.command('attributes')
-// TODO: program.command('categories')
-
 program
   .parse(process.argv)
