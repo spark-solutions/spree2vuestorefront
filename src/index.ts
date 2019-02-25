@@ -1,7 +1,7 @@
 import * as program from 'commander'
 import { config } from 'dotenv'
 import elasticsearch from 'elasticsearch'
-import { Client } from 'spree-storefront-api-v2-js-sdk'
+import { makeClient } from 'spree-storefront-api-v2-js-sdk'
 import importers from './importers'
 import {
   flushElastic,
@@ -64,7 +64,7 @@ const getElasticBulkQueue = () => {
 }
 
 const getSpreeClient = () => (
-  Client({
+  makeClient({
     host: spreeOptions.host + '/'
   })
 )

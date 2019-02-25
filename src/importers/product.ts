@@ -1,3 +1,4 @@
+import Instance from 'spree-storefront-api-v2-js-sdk/src/Instance'
 import {
   Document,
   JsonApiDocument,
@@ -38,7 +39,7 @@ const findOptionTypeFromOptionValue = (optionTypes: any[], optionValueId): any |
 }
 
 const importProducts = (
-  spreeClient: any,
+  spreeClient: Instance,
   getElasticBulkQueue: any,
   preconfigMapPages: any
 ): void => {

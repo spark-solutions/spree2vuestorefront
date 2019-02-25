@@ -1,8 +1,9 @@
+import Instance from 'spree-storefront-api-v2-js-sdk/src/Instance'
 import { JsonApiDocument, JsonApiResponse } from '../interfaces'
 import { logger } from '../utils'
 
 const importCategories = (
-  spreeClient: any, getElasticBulkQueue: any, preconfigMapPages: any
+  spreeClient: Instance, getElasticBulkQueue: any, preconfigMapPages: any
 ): void => {
   preconfigMapPages(
     (page: number, perPage: number) => (
