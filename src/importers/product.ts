@@ -1,5 +1,6 @@
 import {
   Document,
+  ESProductType,
   JsonApiDocument,
   JsonApiResponse,
   OptionValueDocument,
@@ -161,7 +162,7 @@ const importProducts = (
         // In Magento, value of 1 is not used.
         tax_class_id: 2,
         thumbnail: getImageUrl(images[0] as SpreeProductImage, 800, 800) || '',
-        type_id: variants.length === 0 ? 'simple' : 'configurable',
+        type_id: variants.length === 0 ? ESProductType.Simple : ESProductType.Configurable,
         updated_at: product.attributes.updated_at, // used for sorting and filtering
         // visibility. From Magento: 1 - Visible Individually, 2 - catalog, 3 - search, 4 - catalog & search
         visibility: 4,
