@@ -61,3 +61,8 @@ export interface IndexOperation extends ElasticOperation {
     _body: any
   }
 }
+
+export enum ESProductType {
+  Simple = 'simple',
+  Configurable = 'configurable'
+}
