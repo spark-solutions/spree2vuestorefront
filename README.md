@@ -698,28 +698,28 @@ Intermediary layer for importing Spree catalogue and interacting with Spree. Pla
     "bypassCartLoaderForAuthorizedUsers": true,
     "multisiteCommonCart": true,
     "serverMergeByDefault": true,
-    "serverSyncCanRemoveLocalItems": false,
-    "serverSyncCanModifyLocalItems": false,
+    "serverSyncCanRemoveLocalItems": true,
+    "serverSyncCanModifyLocalItems": true,
     "synchronize": true,
     "synchronize_totals": true,
     "setCustomProductOptions": true,
     "setConfigurableProductOptions": true,
     "askBeforeRemoveProduct": true,
-    "create_endpoint": "http://localhost:8080/api/cart/create?token={{token}}",
-    "updateitem_endpoint": "http://localhost:8080/api/cart/update?token={{token}}&cartId={{cartId}}",
-    "deleteitem_endpoint": "http://localhost:8080/api/cart/delete?token={{token}}&cartId={{cartId}}",
-    "pull_endpoint": "http://localhost:8080/api/cart/pull?token={{token}}&cartId={{cartId}}",
-    "totals_endpoint": "http://localhost:8080/api/cart/totals?token={{token}}&cartId={{cartId}}",
-    "paymentmethods_endpoint": "http://localhost:8080/api/cart/payment-methods?token={{token}}&cartId={{cartId}}",
-    "shippingmethods_endpoint": "http://localhost:8080/api/cart/shipping-methods?token={{token}}&cartId={{cartId}}",
-    "shippinginfo_endpoint": "http://localhost:8080/api/cart/shipping-information?token={{token}}&cartId={{cartId}}",
-    "collecttotals_endpoint": "http://localhost:8080/api/cart/collect-totals?token={{token}}&cartId={{cartId}}",
-    "deletecoupon_endpoint": "http://localhost:8080/api/cart/delete-coupon?token={{token}}&cartId={{cartId}}",
-    "applycoupon_endpoint": "http://localhost:8080/api/cart/apply-coupon?token={{token}}&cartId={{cartId}}&coupon={{coupon}}"
+    "create_endpoint": "http://localhost:8889/api/cart/create?token={{token}}",
+    "updateitem_endpoint": "http://localhost:8889/api/cart/update?token={{token}}&cartId={{cartId}}",
+    "deleteitem_endpoint": "http://localhost:8889/api/cart/delete?token={{token}}&cartId={{cartId}}",
+    "pull_endpoint": "http://localhost:8889/api/cart/pull?token={{token}}&cartId={{cartId}}",
+    "totals_endpoint": "http://localhost:8889/api/cart/totals?token={{token}}&cartId={{cartId}}",
+    "paymentmethods_endpoint": "http://localhost:8889/api/cart/payment-methods?token={{token}}&cartId={{cartId}}",
+    "shippingmethods_endpoint": "http://localhost:8889/api/cart/shipping-methods?token={{token}}&cartId={{cartId}}",
+    "shippinginfo_endpoint": "http://localhost:8889/api/cart/shipping-information?token={{token}}&cartId={{cartId}}",
+    "collecttotals_endpoint": "http://localhost:8889/api/cart/collect-totals?token={{token}}&cartId={{cartId}}",
+    "deletecoupon_endpoint": "http://localhost:8889/api/cart/delete-coupon?token={{token}}&cartId={{cartId}}",
+    "applycoupon_endpoint": "http://localhost:8889/api/cart/apply-coupon?token={{token}}&cartId={{cartId}}&coupon={{coupon}}"
   },
   "products": {
     "useShortCatalogUrls": false,
-    "useMagentoUrlKeys": false,
+    "useMagentoUrlKeys": true,
     "setFirstVarianAsDefaultInURL": false,
     "configurableChildrenStockPrefetchStatic": false,
     "configurableChildrenStockPrefetchDynamic": false,
@@ -768,7 +768,7 @@ Intermediary layer for importing Spree catalogue and interacting with Spree. Pla
   },
   "orders": {
     "directBackendSync": true,
-    "endpoint": "http://localhost:8080/api/order",
+    "endpoint": "http://localhost:8889/api/order",
     "payment_methods_mapping": {},
     "offline_orders": {
       "automatic_transmission_enabled": false,
@@ -803,19 +803,19 @@ Intermediary layer for importing Spree catalogue and interacting with Spree. Pla
   },
   "users": {
     "autoRefreshTokens": true,
-    "endpoint": "http://localhost:8080/api/user",
-    "history_endpoint": "http://localhost:8080/api/user/order-history?token={{token}}",
-    "resetPassword_endpoint": "http://localhost:8080/api/user/reset-password",
-    "changePassword_endpoint": "http://localhost:8080/api/user/change-password?token={{token}}",
-    "login_endpoint": "http://localhost:8080/api/user/login",
-    "create_endpoint": "http://localhost:8080/api/user/create",
-    "me_endpoint": "http://localhost:8080/api/user/me?token={{token}}",
-    "refresh_endpoint": "http://localhost:8080/api/user/refresh"
+    "endpoint": "http://localhost:8889/api/user",
+    "history_endpoint": "http://localhost:8889/api/user/order-history?token={{token}}",
+    "resetPassword_endpoint": "http://localhost:8889/api/user/reset-password",
+    "changePassword_endpoint": "http://localhost:8889/api/user/change-password?token={{token}}",
+    "login_endpoint": "http://localhost:8889/api/user/login",
+    "create_endpoint": "http://localhost:8889/api/user/create",
+    "me_endpoint": "http://localhost:8889/api/user/me?token={{token}}",
+    "refresh_endpoint": "http://localhost:8889/api/user/refresh"
   },
   "stock": {
     "synchronize": true,
     "allowOutOfStockInCart": true,
-    "endpoint": "http://localhost:8080/api/stock"
+    "endpoint": "http://localhost:8889/api/stock"
   },
   "images": {
     "useExactUrlsNoProxy": false,
@@ -911,7 +911,7 @@ Intermediary layer for importing Spree catalogue and interacting with Spree. Pla
         {
           "key": "category.name",
           "value": {
-            "eq": "Performance Fabrics"
+            "eq": "Ruby"
           }
         }
       ]
@@ -921,7 +921,7 @@ Intermediary layer for importing Spree catalogue and interacting with Spree. Pla
         {
           "key": "category.name",
           "value": {
-            "eq": "Tees"
+            "eq": "Spree"
           }
         }
       ]
@@ -931,7 +931,7 @@ Intermediary layer for importing Spree catalogue and interacting with Spree. Pla
         {
           "key": "category.name",
           "value": {
-            "eq": "Women"
+            "eq": "Bags"
           }
         }
       ]
@@ -941,13 +941,14 @@ Intermediary layer for importing Spree catalogue and interacting with Spree. Pla
         {
           "key": "category.name",
           "value": {
-            "eq": "Tees"
+            "eq": "Shirts"
           }
         }
       ]
     }
   }
 }
+
 ```
 
 ## Full `attribute` record in Elastic Search example
