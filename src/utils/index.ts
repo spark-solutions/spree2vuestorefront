@@ -1,3 +1,4 @@
+import serializeError from 'serialize-error'
 import * as winston from 'winston'
 import {
   Document,
@@ -10,22 +11,29 @@ import {
   SpreeProductImage
 } from '../interfaces'
 
-const logger = winston.createLogger({
-  exceptionHandlers: [
-    new winston.transports.File({ filename: 'unhandled-exceptions.log' }),
-    new winston.transports.Console()
-  ],
-  format: winston.format.combine(
-    winston.format.timestamp(),
-    winston.format.json({ space: 2 })
-  ),
-  level: 'info',
-  transports: [
-    new winston.transports.File({ filename: 'error.log', level: 'error' }),
-    new winston.transports.File({ filename: 'combined.log' }),
-    new winston.transports.Console()
-  ]
-})
+const makeLogger = () => {
+  const { format: { combine, json, timestamp } } = winston
+  const replacer = (_: string, logValue: any) => logValue instanceof Error ? serializeError(logValue) : logValue
+
+  return winston.createLogger({
+    exceptionHandlers: [
+      new winston.transports.File({ filename: 'unhandled-exceptions.log' }),
+      new winston.transports.Console()
+    ],
+    format: combine(
+      timestamp(),
+      json({ replacer, space: 2 })
+    ),
+    level: 'info',
+    transports: [
+      new winston.transports.File({ filename: 'error.log', level: 'error' }),
+      new winston.transports.File({ filename: 'combined.log' }),
+      new winston.transports.Console()
+    ]
+  })
+}
+
+const logger = makeLogger()
 
 const getImageUrl = (image: SpreeProductImage, minWidth: number, _: number): string | null => {
   // every image is still resized in vue-storefront-api, no matter what getImageUrl returns
