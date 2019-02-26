@@ -5,10 +5,16 @@ export interface Document {
 }
 export interface JsonApiResponse {
   data: JsonApiDocument | JsonApiDocument[],
-  included?: JsonApiDocument[],
+  included?: JsonApiDocument[]
+}
+export interface JsonApiListResponse extends JsonApiResponse {
+  data: JsonApiDocument[],
   meta?: {
     total_pages: number
   }
+}
+export interface JsonApiSingleResponse extends JsonApiResponse {
+  data: JsonApiDocument
 }
 export interface JsonApiDocument {
   id: string,
