@@ -182,37 +182,27 @@ export default (spreeClient: Instance) => {
 
   app.get('/api/stock/check', (request, response) => {
     const sku = request.query.sku
-    response.json({
-      code: 200,
-      result: {
-        backorders: 0,
-        enable_qty_increments: false,
-        is_decimal_divided: false,
-        is_in_stock: true,
-        is_qty_decimal: false,
-        item_id: 580,
-        low_stock_date: null,
-        manage_stock: true,
-        max_sale_qty: 10000,
-        min_qty: 0,
-        min_sale_qty: 1,
-        notify_stock_qty: 1,
-        product_id: 580,
-        qty: 53,
-        qty_increments: 0,
-        show_default_notification_message: false,
-        stock_id: 1,
-        stock_status_changed_auto: 0,
-        use_config_backorders: true,
-        use_config_enable_qty_inc: true,
-        use_config_manage_stock: true,
-        use_config_max_sale_qty: true,
-        use_config_min_qty: true,
-        use_config_min_sale_qty: 1,
-        use_config_notify_stock_qty: true,
-        use_config_qty_increments: true
-      }
-    })
+
+    variantFromSku(spreeClient, sku)
+      .then((spreeResponse: JsonApiSingleResponse) => {
+        logger.info(`Variant with sku = ${sku} found.`)
+        const variant = spreeResponse.data
+        response.json({
+          code: 200,
+          result: {
+            is_in_stock: variant.attributes.in_stock,
+            product_id: variant.id // Used only for logging purposes in VS?
+          }
+        })
+      })
+      .catch((error) => {
+        logger.error([`Error fetching stock for sku = ${sku}`, error])
+        response.statusCode = 500
+        response.json({
+          code: 500,
+          result: null
+        })
+      })
   })
 
   app.all('*', (request, response) => {
