@@ -5,6 +5,7 @@ import {
   ESImage,
   ImageStyle,
   JsonApiDocument,
+  JsonApiListResponse,
   JsonApiResponse,
   SpreeProductImage
 } from '../interfaces'
@@ -101,7 +102,7 @@ const findIncludedOfType = (
 }
 
 const mapPages = (
-  makePaginationRequest: (page: number, perPage: number) => Promise<JsonApiResponse>,
+  makePaginationRequest: (page: number, perPage: number) => Promise<JsonApiListResponse>,
   resourceCallback: (response: JsonApiResponse) => any,
   perPage: number,
   maxPages: number
