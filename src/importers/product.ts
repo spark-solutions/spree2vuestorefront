@@ -11,32 +11,18 @@ import {
 import {
   findIncluded,
   findIncludedOfType,
+  findOptionTypeFromOptionValue,
+  generateCustomAttributeCode,
+  generateOptionAttributeCode,
   getImageUrl,
   getMediaGallery,
   logger
 } from '../utils'
 
-// productCustomAttributesPrefix is used as extra prefix to reduce the possibility of naming collisions with product
-// options and standard product fields.
-const productCustomAttributesPrefix = 'prodattr_'
-const productOptionAttributePrefix = 'prodopt_'
-
-const generateOptionAttributeCode = (attributeIdentifier) => `${productOptionAttributePrefix}${attributeIdentifier}`
-const generateCustomAttributeCode = (attributeIdentifier) => `${productCustomAttributesPrefix}${attributeIdentifier}`
-
 const sortyByPositionAttribute = (a: PositionedDocument, b: PositionedDocument) => {
   if (a.attributes.position > b.attributes.position) { return 1 }
   if (a.attributes.position < b.attributes.position) { return -1 }
   return 0
-}
-
-const findOptionTypeFromOptionValue = (optionTypes: any[], optionValueId): any | null => {
-  return optionTypes.find((optionType) => {
-    const optionValues = optionType.relationships.option_values.data
-    return !!optionValues.find((optionValue: { id: string}) => {
-      return optionValue.id === optionValueId
-    })
-  }) || null
 }
 
 const importProducts = (
