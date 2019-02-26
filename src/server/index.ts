@@ -1,5 +1,5 @@
 import cors from 'cors'
-import express from 'express'
+import * as express from 'express'
 import Instance from 'spree-storefront-api-v2-js-sdk/src/Instance'
 import { JsonApiSingleResponse } from '../interfaces'
 import {
@@ -11,9 +11,8 @@ import {
   variantFromSku
 } from '../utils'
 
-const app = express()
-
 export default (spreeClient: Instance) => {
+  const app = express()
   app.use(cors())
   app.use(express.json())
 
@@ -104,59 +103,81 @@ export default (spreeClient: Instance) => {
       })
   })
 
+  enum CartOperationType { Add, Update }
+
+  class CartOperationError extends Error {}
+
   app.post('/api/cart/update', (request, response) => {
     const cartId = request.query.cartId
     logger.info(`Updating cart for cartId = ${cartId}`)
 
-    const variantSku = request.body.cartItem.sku
-    const quantity = request.body.cartItem.qty
+    const { sku: variantSku, qty: quantity, item_id: lineItemId } = request.body.cartItem
+    const operationType = lineItemId ? CartOperationType.Update : CartOperationType.Add
 
-    logger.info(`Finding variant with sku = ${variantSku}`)
-    variantFromSku(spreeClient, variantSku)
+    const spreeResponseIncludes = [
+      'line_items',
+      'line_items.variant',
+      'line_items.variant.product',
+      'line_items.variant.product.option_types'
+    ].join(',')
+
+    let cartUpdateRequest
+
+    if (operationType === CartOperationType.Add) {
+      logger.info(`Finding variant with sku = ${variantSku}`)
+      cartUpdateRequest = variantFromSku(spreeClient, variantSku)
+        .then((spreeResponse: JsonApiSingleResponse) => {
+          logger.info(`Variant with sku = ${variantSku} found.`)
+          // TODO: do I have to react to configurable_item_options in cart/update payload??
+          const variant = spreeResponse.data
+          logger.info(`Adding qty = ${quantity} to variant.id = ${variant.id}`)
+          return spreeClient.cart.addItem(
+            getTokenOptions(request),
+            {
+              include: spreeResponseIncludes,
+              quantity,
+              variant_id: +variant.id
+            }
+          )
+        })
+    } else if (operationType === CartOperationType.Update) {
+      logger.info(`Updating line item quantity for lineItemId = ${lineItemId}`)
+      cartUpdateRequest = spreeClient.cart.setQuantity(
+        getTokenOptions(request),
+        {
+          include: spreeResponseIncludes,
+          line_item_id: lineItemId,
+          quantity
+        }
+      )
+    }
+
+    cartUpdateRequest
       .then((spreeResponse: JsonApiSingleResponse) => {
-        logger.info(`Variant with sku = ${variantSku} found.`)
-        // TODO: do I have to react to configurable_item_options in cart/update payload??
-        const variant = spreeResponse.data
-        logger.info(`Adding qty = ${quantity} to variant.id = ${variant.id}`)
-        spreeClient.cart.addItem(
-          getTokenOptions(request),
-          {
-            include: [
-              'line_items',
-              'line_items.variant',
-              'line_items.variant.product',
-              'line_items.variant.product.option_types'
-            ].join(','),
-            quantity,
-            variant_id: +variant.id
-          }
-        )
-          .then((r: JsonApiSingleResponse) => {
-            logger.info(`Line item for variant sku = ${variantSku} added to cart.`)
-            const cart = r.data
-            const lineItems = findIncludedOfType(r, cart, 'line_items')
-            const addedLineItem = lineItems.find((lI) => {
-              const vr = findIncluded(r, lI.relationships.variant.data.type, lI.relationships.variant.data.id)
-              return vr.attributes.sku === variantSku
-            })
-            const convertedLineItem = getLineItem(r, addedLineItem, cartId)
-            response.json({
-              code: 200,
-              result: convertedLineItem
-            })
-          })
-          .catch((err) => {
-            console.error('ERRR', err)
-            response.statusCode = 500
-            response.json({
-              code: 500,
-              result: null
-            })
-          })
+        logger.info(`Line item for variant sku = ${variantSku} added to cart.`)
+        const cart = spreeResponse.data
+        const lineItems = findIncludedOfType(spreeResponse, cart, 'line_items')
+        const addedLineItem = lineItems.find((lineItem) => {
+          const { id, type } = lineItem.relationships.variant.data
+          const variant = findIncluded(spreeResponse, type, id)
+          return variant.attributes.sku === variantSku
+        })
+        const convertedLineItem = getLineItem(spreeResponse, addedLineItem, cartId)
+        response.json({
+          code: 200,
+          result: convertedLineItem
+        })
+      })
+      .catch((error) => {
+        logger.error(['Error adding new item to cart', error])
+        response.statusCode = 500
+        response.json({
+          code: 500,
+          result: null
+        })
       })
 
     // TODO: support spreeClient.cart.removeItem
-    // TODO: support spreeClient.cart.setQuantity
   })
 
   app.get('/api/stock/check', (request, response) => {
