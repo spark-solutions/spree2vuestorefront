@@ -3,6 +3,7 @@ import { config } from 'dotenv'
 import elasticsearch from 'elasticsearch'
 import { makeClient } from 'spree-storefront-api-v2-js-sdk'
 import importers from './importers'
+import server from './server'
 import {
   flushElastic,
   logger,
@@ -111,6 +112,12 @@ program.command('product [ids...]')
       .then((products: any) => {
         logger.info(products.hits.hits)
       })
+  })
+
+program.command('api-server')
+  .action(() => {
+    logger.info('Starting API server')
+    server(getSpreeClient())
   })
 
 program.on('command:*', () => {
