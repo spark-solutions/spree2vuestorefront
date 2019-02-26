@@ -9,7 +9,8 @@
   "scripts": {
     "build": "webpack",
     "watch": "webpack --watch",
-    "lint:fix": "tslint src/**/*.ts --fix"
+    "lint:fix": "tslint src/**/*.ts --fix",
+    "server": "nodemon ./dist/index.js api-server"
   },
   "license": "MIT",
   "devDependencies": {
@@ -21,6 +22,7 @@
     "@babel/runtime": "^7.3.1",
     "@types/node": "^10.12.21",
     "babel-loader": "^8.0.5",
+    "nodemon": "^1.18.10",
     "progress-bar-webpack-plugin": "^1.12.1",
     "source-map-loader": "^0.2.4",
     "ts-loader": "^5.3.3",
@@ -32,8 +34,10 @@
   },
   "dependencies": {
     "commander": "^2.19.0",
+    "cors": "^2.8.5",
     "dotenv": "^6.2.0",
     "elasticsearch": "^15.3.1",
+    "express": "^4.16.4",
     "winston": "^3.2.1"
   }
 }
