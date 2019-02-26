@@ -1,4 +1,5 @@
 import serializeError from 'serialize-error'
+import { IToken } from 'spree-storefront-api-v2-js-sdk/src/interfaces/Token'
 import * as winston from 'winston'
 import {
   Document,
@@ -245,12 +246,30 @@ const flushElastic = (
     })
 }
 
+const getTokenOptions = (request): IToken => {
+  const tokenOptions: IToken = {}
+
+  const bearerToken = request.query.token
+  const orderToken = request.query.cartId
+
+  if (bearerToken) {
+    tokenOptions.bearerToken = bearerToken
+  }
+
+  if (orderToken) {
+    tokenOptions.orderToken = orderToken
+  }
+
+  return tokenOptions
+}
+
 export {
   findIncluded,
   findIncludedOfType,
   flushElastic,
   getImageUrl,
   getMediaGallery,
+  getTokenOptions,
   logger,
   mapPages,
   pushElasticIndex
