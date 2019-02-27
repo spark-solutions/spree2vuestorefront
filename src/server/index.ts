@@ -176,8 +176,28 @@ export default (spreeClient: Instance) => {
           result: null
         })
       })
+  })
 
-    // TODO: support spreeClient.cart.removeItem
+  app.post('/api/cart/delete', (request, response) => {
+    const { sku: variantSku, item_id: lineItemId } = request.body.cartItem
+
+    spreeClient.cart.removeItem(getTokenOptions(request), lineItemId)
+      .then(() => {
+        logger.info(`Remove item for variant sku = ${variantSku} from cart.`)
+
+        response.json({
+          code: 200,
+          result: true
+        })
+      })
+      .catch((error) => {
+        logger.error([`Error removing item from cart.`, error])
+        response.statusCode = 500
+        response.json({
+          code: 500,
+          result: null
+        })
+      })
   })
 
   app.get('/api/stock/check', (request, response) => {
