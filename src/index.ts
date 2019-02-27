@@ -14,9 +14,13 @@ import {
 config()
 
 const spreeOptions = {
-  host: process.env.S_HOST,
-  imagesHost: process.env.S_IMAGES_HOST,
-  path: process.env.S_PATH
+  host: process.env.SPREE_HOST,
+  imagesHost: process.env.SPREE_IMAGES_HOST,
+  path: process.env.SPREE_PATH
+}
+
+const serverOptions = {
+  port: process.env.SERVER_PORT
 }
 
 const elasticSearchOptions = {
@@ -117,7 +121,7 @@ program.command('product [ids...]')
 program.command('api-server')
   .action(() => {
     logger.info('Starting API server')
-    server(getSpreeClient())
+    server(getSpreeClient(), serverOptions)
   })
 
 program.on('command:*', () => {

@@ -11,7 +11,7 @@ import {
   variantFromSku
 } from '../utils'
 
-export default (spreeClient: Instance) => {
+export default (spreeClient: Instance, serverOptions: any) => {
   const app = express()
   app.use(cors())
   app.use(express.json())
@@ -234,7 +234,7 @@ export default (spreeClient: Instance) => {
     })
   })
 
-  app.listen(8889, () => {
-    logger.info('API listening on port 8889')
+  app.listen(serverOptions.port, () => {
+    logger.info(`API listening on port ${serverOptions.port}`)
   })
 }
