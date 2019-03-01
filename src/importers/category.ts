@@ -1,6 +1,6 @@
 import Instance from 'spree-storefront-api-v2-js-sdk/src/Instance'
 import { JsonApiDocument, JsonApiResponse } from '../interfaces'
-import { logger } from '../utils'
+import { findIncluded, logger } from '../utils'
 
 const importCategories = (
   spreeClient: Instance, getElasticBulkQueue: any, preconfigMapPages: any
@@ -18,51 +18,40 @@ const importCategories = (
       logger.info(`Importing category id=${category.id} from Spree to ES`)
 
       const relationships = category.relationships
-      const included = response.included
 
-      const taxonChilds = () => {
-        return relationships.children.data.map((obj) => {
-          const children = included.find((item) => {
-            return item.id === obj.id && item.type === 'taxon'
-          })
-
-          if (!children) {
-            return []
-          }
+      const getChildrenProps = (categoryNode) => {
+        const children = categoryNode.relationships.children.data.map((childRef) => {
+          const child = findIncluded(response, 'taxon', childRef.id)
 
           return {
-            children_count: children.relationships.children.data.length,
-            children_data: [],
-            id: children.id,
-            include_in_menu: 1,
-            name: children.attributes.name,
-            parent_id: children.relationships.parent.data.id,
-            position: children.attributes.position,
-            url_key: children.attributes.permalink
+            id: childRef.id,
+            ...getChildrenProps(child)
           }
         })
-      }
 
-      const esCategory = () => {
-        const categoryChilds = taxonChilds()
+        if (children.length === 0) {
+          return {}
+        }
 
         return {
-          available_sort_by: null,
-          children_count: relationships.children.data.length,
-          children_data: categoryChilds,
-          id: category.id,
-          include_in_menu: 1,
-          is_active: true,
-          level: category.attributes.depth + 2,
-          name: category.attributes.name,
-          parent_id: relationships.parent.data && relationships.parent.data.id || 1,
-          position: category.attributes.position,
-          product_count: relationships.products.data.length,
-          url_key: `${category.attributes.permalink.replace('-', '_')}_${category.id}`
+          children_count: children.length,
+          children_data: children
         }
       }
 
-      getElasticBulkQueue.pushIndex('category', esCategory())
+      const esCategory = {
+        ...getChildrenProps(category),
+        id: category.id,
+        is_active: true,
+        level: category.attributes.depth + 2,
+        name: category.attributes.name,
+        parent_id: relationships.parent.data && relationships.parent.data.id || '0',
+        position: category.attributes.position,
+        product_count: relationships.products.data.length,
+        url_key: category.attributes.permalink.replace('-', '_')
+      }
+
+      getElasticBulkQueue.pushIndex('category', esCategory)
     }
   )
     .then(() => {
