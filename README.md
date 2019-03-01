@@ -1053,6 +1053,10 @@ TODO: whitelist incoming hosts requesting Express server
 - Bug: setting attributes for a product inside `custom_attributes` is completely ignored when `useDynamicAttributeLoader: true` in VS configuration. `custom_attributes` are pushed onto product anyway, so it doesn't have to be used.
 - `meta_description` and `meta_keywords` for Spree products aren't consumed by VS. The Spree currency field inside products is currently ignored.
 - VS-api doesn't properly handle queries to Elastic Search which contain `term` values containing `-` (dash). It must be avoided in ES fields, such as `url_key` and `attribute_code`.
+- Bug: VS allows entering empty email in checkout in Personal Details by focusing on email input and pressing return.
+- There's currently no way to setup variants in Elastic Search so that VS filters them by a range of values assignable to a particular field inside their parent product. Specifically, this prevents filtering products by prices of their variants. This is possible to do for discrete values by modifying `products.defaultFilters` in VS config. It is also possible to modify VS's template to show extra filters, which can be discrete or continuous.
+- It's currently impossible for VS to fetch shipping methods after the user enters all shipping information. This effectively prevents using VS checkout for Spree orders. A workaround is to redirect the user to Spree's checkout page once he enters VS's checkout. In this case, `synchronize_totals` needs to be set to `false`.
+- VS sends only `country_id` when calling the `/cart/shipping-method` endpoint and expects available shipping methods will be determined solely on this property.
 
 References:
 - [https://github.com/DivanteLtd/vue-storefront-integration-boilerplate/blob/master/3.%20Configure%20vue-storefront/How%20to%20configure%20Vue%20Storefront.md](https://github.com/DivanteLtd/vue-storefront-integration-boilerplate/blob/master/3.%20Configure%20vue-storefront/How%20to%20configure%20Vue%20Storefront.md)
