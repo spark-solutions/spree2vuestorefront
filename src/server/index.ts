@@ -105,8 +105,6 @@ export default (spreeClient: Instance, serverOptions: any) => {
 
   enum CartOperationType { Add, Update }
 
-  class CartOperationError extends Error {}
-
   app.post('/api/cart/update', (request, response) => {
     const cartId = request.query.cartId
     logger.info(`Updating cart for cartId = ${cartId}`)
