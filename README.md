@@ -703,7 +703,7 @@ Intermediary layer for importing Spree catalogue and interacting with Spree. Pla
     "synchronize": true,
     "synchronize_totals": true,
     "setCustomProductOptions": true,
-    "setConfigurableProductOptions": true,
+    "setConfigurableProductOptions": false,
     "askBeforeRemoveProduct": true,
     "create_endpoint": "http://localhost:8889/api/cart/create?token={{token}}",
     "updateitem_endpoint": "http://localhost:8889/api/cart/update?token={{token}}&cartId={{cartId}}",

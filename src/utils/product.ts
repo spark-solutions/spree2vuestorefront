@@ -38,6 +38,8 @@ const getLineItem = (response: JsonApiResponse, lineItem: JsonApiDocument, cartI
           option_value: ov.id
         }
     })
+    // TODO: productOption.extension_attributes can probably be removed when setConfigurableProductOptions: false in VS
+    // config. Try to remove.
     productOption.extension_attributes = { configurable_item_options: configurableItemOptions }
   }
 
