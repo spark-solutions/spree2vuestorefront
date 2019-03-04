@@ -86,6 +86,7 @@ const importProducts = (
         .map((optionType) => {
           return {
             attribute_code: generateOptionAttributeCode(optionType.id),
+            // attribute_id - only required when setConfigurableProductOptions: true, should equal attribute_code
             label: optionType.attributes.presentation,
             values: optionType.relationships.option_values.data
               .map((optionValue: { id: string }) => {
