@@ -43,6 +43,43 @@ const getElasticClient = () => (
   })
 )
 
+const createIndices = () => {
+  getElasticClient().indices.create({
+    index: elasticSearchOptions.index
+  })
+    .then(() => {
+      logger.info('Indices created.')
+      setMapping()
+    })
+    .catch(() => {
+      logger.error('Error: Cannot create indices!')
+    })
+}
+
+const setMapping = () => {
+  const indexName = elasticSearchOptions.index
+  const typeName = 'product'
+  const indexMapping = {
+    properties: {
+      sku: {
+        index: 'not_analyzed',
+        type: 'string'
+      }
+    }
+  }
+
+  getElasticClient().indices.putMapping({
+    body: indexMapping,
+    index: indexName,
+    type: typeName
+  })
+    .then(() => {
+      logger.info('Mapping set.')
+    }).catch(() => {
+      logger.error('Error: Cannot set mapping!')
+    })
+}
+
 const getElasticBulkQueue = () => {
   const elasticClient = getElasticClient()
   let pendingOperations = Promise.resolve({ errors: [], operations: [], operationsCount: 0 })
@@ -77,10 +114,15 @@ const getSpreeClient = () => (
 const preconfigMapPages = (makePaginationRequest, resourceCallback) =>
   mapPages(makePaginationRequest, resourceCallback, paginationOptions.perPage, paginationOptions.maxPages)
 
+program.command('create-indices')
+  .action(() => {
+    createIndices()
+  })
+
 program.command('remove-everything')
   .action(() => {
     getElasticClient().indices.delete({
-      index: 'vue_storefront_catalog'
+      index: elasticSearchOptions.index
     })
   })
 
