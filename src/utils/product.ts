@@ -1,5 +1,5 @@
 import Instance from 'spree-storefront-api-v2-js-sdk/src/Instance'
-import { findIncluded, findIncludedOfType, mapPages } from '.'
+import { findIncluded, findIncludedOfType } from '.'
 import { ESProductType, JsonApiDocument, JsonApiResponse, JsonApiSingleResponse } from '../interfaces'
 
 // productCustomAttributesPrefix is used as extra prefix to reduce the possibility of naming collisions with product
@@ -55,44 +55,27 @@ const getLineItem = (response: JsonApiResponse, lineItem: JsonApiDocument, cartI
   }
 }
 
-// FIXME: will be replaced with dedicated APIv2 endpoint
-const variantFromSku = (spreeClient: Instance, sku: string): Promise<JsonApiSingleResponse> => {
-  return new Promise((resolve, reject) => {
-    mapPages(
-      (page: number, perPage: number): any => {
-        return spreeClient.products.list({
-          include: 'default_variant,variants',
-          page,
-          per_page: perPage
-        })
-      },
-      (response: JsonApiSingleResponse) => {
-        const product: JsonApiDocument = response.data
-        const relationships = product.relationships
-        const defaultVariantIdentifier = relationships.default_variant.data
-        const defaultVariant = findIncluded(response, defaultVariantIdentifier.type, defaultVariantIdentifier.id)
-        const allVariants = [defaultVariant, ...findIncludedOfType(response, product, 'variants')]
-        const skuV = allVariants.find((v) => {
-          return sku === v.attributes.sku
-        })
-        if (skuV) {
-          resolve({
-            data: skuV,
-            included: response.included
-          })
-        }
-      },
-      100000,
-      100000
-    )
-      .then(() => {
-        reject(new Error('Cannot find sku = ' + sku))
-      })
-      .catch((error) => {
-        console.error(error)
-        reject(error)
-      })
+const variantFromSku = (spreeClient: Instance, sku: string): Promise<JsonApiSingleResponse | null> => {
+  return spreeClient.products.list({
+    filter: {
+      skus: sku
+    },
+    include: 'default_variant,variants',
+    page: 1,
+    per_page: 1
   })
+    .then((response) => {
+      if (response.data.length === 0) {
+        throw Error(`Cannot find product with sku = ${sku}`)
+      }
+      const variant = response.included.find((resource) => {
+        return resource.type === 'variant' && resource.attributes.sku === sku
+      })
+      return {
+        data: variant,
+        included: response.included
+      }
+    })
 }
 
 export {
