@@ -134,7 +134,7 @@ export default (spreeClient: Instance, serverOptions: any) => {
             {
               include: spreeResponseIncludes,
               quantity,
-              variant_id: +variant.id
+              variant_id: variant.id
             }
           )
         })
