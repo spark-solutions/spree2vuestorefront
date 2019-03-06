@@ -1,7 +1,7 @@
 export interface BackendOptions { }
 export interface SpreeProduct { }
 export interface Document {
-  id: string
+  id: any
 }
 export interface JsonApiResponse {
   data: JsonApiDocument | JsonApiDocument[],

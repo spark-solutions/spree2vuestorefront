@@ -2,7 +2,9 @@ import * as program from 'commander'
 import { config } from 'dotenv'
 import elasticsearch from 'elasticsearch'
 import { makeClient } from 'spree-storefront-api-v2-js-sdk'
+import Instance from 'spree-storefront-api-v2-js-sdk/src/Instance'
 import importers from './importers'
+import { JsonApiListResponse, JsonApiResponse } from './interfaces'
 import server from './server'
 import {
   flushElastic,
@@ -105,13 +107,16 @@ const getElasticBulkQueue = () => {
   }
 }
 
-const getSpreeClient = () => (
+const getSpreeClient = (): Instance => (
   makeClient({
     host: spreeOptions.host + '/'
   })
 )
 
-const preconfigMapPages = (makePaginationRequest, resourceCallback) =>
+const preconfigMapPages = (
+  makePaginationRequest: (page: number, perPage: number) => Promise<JsonApiListResponse>,
+  resourceCallback: (response: JsonApiResponse) => any
+): Promise<any> =>
   mapPages(makePaginationRequest, resourceCallback, paginationOptions.perPage, paginationOptions.maxPages)
 
 program.command('create-indices')
