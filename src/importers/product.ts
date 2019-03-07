@@ -70,6 +70,7 @@ const importProducts = (
           final_price: variantPrice,
           image: getImageUrl(variantImages[0] as SpreeProductImage, 800, 800) || '',
           priceInclTax: variantPrice,
+          regular_price: variantPrice,
           sku: spreeVariant.attributes.sku,
           status: 1,
           stock: {
@@ -133,6 +134,7 @@ const importProducts = (
         news_from_date: null, // start date for when product is "in the news" (featured)
         news_to_date: null, // end date for when product is "in the news" (featured)
         priceInclTax: price,
+        regular_price: price,
         sku: defaultVariant.attributes.sku,
         special_from_date: null, // promotion price start date
         special_price: null, // price during promotion (discounted product price)
