@@ -498,7 +498,7 @@ Intermediary layer for importing Spree catalogue and interacting with Spree. Pla
       "excludeFields": [
         "sgn"
       ],
-      "categoriesRootCategorylId": 2,
+      "categoriesRootCategorylId": 1,
       "categoriesDynamicPrefetchLevel": 2,
       "categoriesDynamicPrefetch": true
     },
@@ -1057,6 +1057,8 @@ TODO: whitelist incoming hosts requesting Express server
 - There's currently no way to setup variants in Elastic Search so that VS filters them by a range of values assignable to a particular field inside their parent product. Specifically, this prevents filtering products by prices of their variants. This is possible to do for discrete values by modifying `products.defaultFilters` in VS config. It is also possible to modify VS's template to show extra filters, which can be discrete or continuous.
 - It's currently impossible for VS to fetch shipping methods after the user enters all shipping information. This effectively prevents using VS checkout for Spree orders. A workaround is to redirect the user to Spree's checkout page once he enters VS's checkout. In this case, `synchronize_totals` needs to be set to `false`.
 - VS sends only `country_id` when calling the `/cart/shipping-method` endpoint and expects available shipping methods will be determined solely on this property.
+- VS sometimes parses category ids to `int`s, which effectively means category ids in ES must be integers. This, in turn, means all ids must be integers, because products, attributes and categories use the same `id` field in ES and ES fields can only have one type. Spree uses strings as ids.
+- Due to how breadcrumbs are generated in VS, it is expected that a product belongs to a single category. Spree taxons, on which VS categories are based, don't have this limitation.
 
 References:
 - [https://github.com/DivanteLtd/vue-storefront-integration-boilerplate/blob/master/3.%20Configure%20vue-storefront/How%20to%20configure%20Vue%20Storefront.md](https://github.com/DivanteLtd/vue-storefront-integration-boilerplate/blob/master/3.%20Configure%20vue-storefront/How%20to%20configure%20Vue%20Storefront.md)
