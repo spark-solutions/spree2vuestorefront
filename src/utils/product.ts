@@ -1,6 +1,7 @@
 import Instance from 'spree-storefront-api-v2-js-sdk/src/Instance'
 import { findIncluded, findIncludedOfType } from '.'
 import { ESProductType, JsonApiDocument, JsonApiResponse, JsonApiSingleResponse } from '../interfaces'
+import { IProducts } from 'spree-storefront-api-v2-js-sdk/src/interfaces/Product';
 
 // productCustomAttributesPrefix is used as extra prefix to reduce the possibility of naming collisions with product
 // options and standard product fields.
@@ -65,15 +66,20 @@ const variantFromSku = (spreeClient: Instance, sku: string): Promise<JsonApiSing
     per_page: 1
   })
     .then((response) => {
-      if (response.data.length === 0) {
-        throw Error(`Cannot find product with sku = ${sku}`)
-      }
-      const variant = response.included.find((resource) => {
-        return resource.type === 'variant' && resource.attributes.sku === sku
-      })
-      return {
-        data: variant,
-        included: response.included
+      if (response.isSuccess()) {
+        const products: IProducts = response.success()
+        if (products.data.length === 0) {
+          throw Error(`Cannot find product with sku = ${sku}`)
+        }
+        const variant = products.included.find((resource) => {
+          return resource.type === 'variant' && resource.attributes.sku === sku
+        })
+        return {
+          data: variant,
+          included: products.included
+        }
+      } else {
+        throw response.fail()
       }
     })
 }
