@@ -1,6 +1,7 @@
 import cors from 'cors'
 import * as express from 'express'
 import Instance from 'spree-storefront-api-v2-js-sdk/src/Instance'
+import { IOrderResult } from 'spree-storefront-api-v2-js-sdk/src/interfaces/Order'
 import { JsonApiSingleResponse } from '../interfaces'
 import {
   findIncluded,
@@ -20,21 +21,20 @@ export default (spreeClient: Instance, serverOptions: any) => {
     logger.info('Fetching new cart token for guest user.')
     spreeClient.cart.create()
       .then((spreeResponse) => {
-        logger.info('New token for guest user fetched.')
-        const spreeToken = spreeResponse.data.attributes.token
-
-        response.json({
-          code: 200,
-          result: spreeToken
-        })
-      })
-      .catch((error) => {
-        logger.error(['Cannot get new cart token for guest user.', error])
-        response.statusCode = 500
-        response.json({
-          code: 500,
-          result: null
-        })
+        if (spreeResponse.isSuccess()) {
+          logger.info('New token for guest user fetched.')
+          const spreeToken = spreeResponse.success().data.attributes.token
+          response.json({
+            code: 200,
+            result: spreeToken
+          })
+        } else {
+          logger.error(['Could not create a new cart.', spreeResponse.fail()])
+          response.json({
+            code: 500,
+            result: null
+          })
+        }
       })
   })
 
@@ -52,27 +52,26 @@ export default (spreeClient: Instance, serverOptions: any) => {
     }
 
     spreeClient.cart.show(getTokenOptions(request), extraParams)
-      .then((spreeResponse: JsonApiSingleResponse) => {
-        logger.info('Cart fetched')
-        logger.info(spreeResponse)
+      .then((spreeResponse) => {
+        if (spreeResponse.isSuccess()) {
+          logger.info('Cart fetched')
 
-        const lineItems = findIncludedOfType(spreeResponse, spreeResponse.data, 'line_items')
-        const result = lineItems.map((lineItem) => {
-          return getLineItem(spreeResponse, lineItem, cartId)
-        })
-
-        response.json({
-          code: 200,
-          result
-        })
-      })
-      .catch((error) => {
-        logger.error(['Cannot get cart.', error])
-        response.statusCode = 500
-        response.json({
-          code: 500,
-          result: null
-        })
+          const successResponse = spreeResponse.success()
+          const lineItems = findIncludedOfType(successResponse, successResponse.data, 'line_items')
+          const result = lineItems.map((lineItem) => {
+            return getLineItem(successResponse, lineItem, cartId)
+          })
+          response.json({
+            code: 200,
+            result
+          })
+        } else {
+          logger.error([`Could not get Spree cart for cartId = ${cartId}.`, spreeResponse.fail()])
+          response.json({
+            code: 500,
+            result: null
+          })
+        }
       })
   })
 
@@ -81,31 +80,32 @@ export default (spreeClient: Instance, serverOptions: any) => {
 
     spreeClient.checkout.paymentMethods(getTokenOptions(request))
       .then((spreeResponse) => {
-        const paymentMethods = spreeResponse.data.map((paymentMethod) => {
-          return {
-            code: paymentMethod.id,
-            title: paymentMethod.attributes.name
-          }
-        })
+        if (spreeResponse.isSuccess()) {
+          const paymentMethods = spreeResponse.success().data.map((paymentMethod) => {
+            return {
+              code: paymentMethod.id,
+              title: paymentMethod.attributes.name
+            }
+          })
 
-        response.json({
-          code: 200,
-          result: paymentMethods
-        })
-      })
-      .catch((error) => {
-        logger.error(['Cannot get payment methods.', error])
-        response.statusCode = 500
-        response.json({
-          code: 500,
-          result: null
-        })
+          response.json({
+            code: 200,
+            result: paymentMethods
+          })
+        } else {
+          logger.error(['Cannot get payment methods.', spreeResponse.fail()])
+          response.statusCode = 500
+          response.json({
+            code: 500,
+            result: null
+          })
+        }
       })
   })
 
-  enum CartOperationType { Add, Update }
-
   app.post('/api/cart/update', (request, response) => {
+    enum CartOperationType { Add, Update }
+
     const cartId = request.query.cartId
     logger.info(`Updating cart for cartId = ${cartId}`)
 
@@ -119,14 +119,13 @@ export default (spreeClient: Instance, serverOptions: any) => {
       'line_items.variant.product.option_types'
     ].join(',')
 
-    let cartUpdateRequest
+    let cartUpdateRequest: Promise<IOrderResult>
 
     if (operationType === CartOperationType.Add) {
       logger.info(`Finding variant with sku = ${variantSku}`)
       cartUpdateRequest = variantFromSku(spreeClient, variantSku)
         .then((spreeResponse: JsonApiSingleResponse) => {
           logger.info(`Variant with sku = ${variantSku} found.`)
-          // TODO: do I have to react to configurable_item_options in cart/update payload??
           const variant = spreeResponse.data
           logger.info(`Adding qty = ${quantity} to variant.id = ${variant.id}`)
           return spreeClient.cart.addItem(
@@ -151,20 +150,30 @@ export default (spreeClient: Instance, serverOptions: any) => {
     }
 
     cartUpdateRequest
-      .then((spreeResponse: JsonApiSingleResponse) => {
-        logger.info(`Line item for variant sku = ${variantSku} added to cart.`)
-        const cart = spreeResponse.data
-        const lineItems = findIncludedOfType(spreeResponse, cart, 'line_items')
-        const addedLineItem = lineItems.find((lineItem) => {
-          const { id, type } = lineItem.relationships.variant.data
-          const variant = findIncluded(spreeResponse, type, id)
-          return variant.attributes.sku === variantSku
-        })
-        const convertedLineItem = getLineItem(spreeResponse, addedLineItem, cartId)
-        response.json({
-          code: 200,
-          result: convertedLineItem
-        })
+      .then((spreeResponse) => {
+        if (spreeResponse.isSuccess()) {
+          const order = spreeResponse.success()
+          logger.info(`Line item for variant sku = ${variantSku} added to cart.`)
+          const cart = order.data
+          const lineItems = findIncludedOfType(order, cart, 'line_items')
+          const addedLineItem = lineItems.find((lineItem) => {
+            const { id, type } = lineItem.relationships.variant.data
+            const variant = findIncluded(order, type, id)
+            return variant.attributes.sku === variantSku
+          })
+          const convertedLineItem = getLineItem(order, addedLineItem, cartId)
+          response.json({
+            code: 200,
+            result: convertedLineItem
+          })
+        } else {
+          logger.error(['Error adding new item to cart', spreeResponse.fail()])
+          response.statusCode = 500
+          response.json({
+            code: 500,
+            result: null
+          })
+        }
       })
       .catch((error) => {
         logger.error(['Error adding new item to cart', error])
@@ -180,21 +189,21 @@ export default (spreeClient: Instance, serverOptions: any) => {
     const { sku: variantSku, item_id: lineItemId } = request.body.cartItem
 
     spreeClient.cart.removeItem(getTokenOptions(request), lineItemId)
-      .then(() => {
-        logger.info(`Remove item for variant sku = ${variantSku} from cart.`)
-
-        response.json({
-          code: 200,
-          result: true
-        })
-      })
-      .catch((error) => {
-        logger.error([`Error removing item from cart.`, error])
-        response.statusCode = 500
-        response.json({
-          code: 500,
-          result: null
-        })
+      .then((spreeResponse) => {
+        if (spreeResponse.isSuccess()) {
+          logger.info(`Removed item for variant sku = ${variantSku} from cart.`)
+          response.json({
+            code: 200,
+            result: true
+          })
+        } else {
+          logger.error([`Error when removing item from cart.`, spreeResponse.fail()])
+          response.statusCode = 500
+          response.json({
+            code: 500,
+            result: null
+          })
+        }
       })
   })
 
