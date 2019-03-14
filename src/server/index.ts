@@ -1,3 +1,4 @@
+import { errors } from '@spree/storefront-api-v2-sdk'
 import cors from 'cors'
 import * as express from 'express'
 import Instance from 'spree-storefront-api-v2-js-sdk/src/Instance'
@@ -197,12 +198,21 @@ export default (spreeClient: Instance, serverOptions: any) => {
             result: true
           })
         } else {
-          logger.error([`Error when removing item from cart.`, spreeResponse.fail()])
-          response.statusCode = 500
-          response.json({
-            code: 500,
-            result: null
-          })
+          const error = spreeResponse.fail()
+          if (error instanceof errors.SpreeError && error.serverResponse.status === 404) {
+            logger.error([`Line item not found and could not be deleted or cart doesn't exist.`])
+            response.json({
+              code: 200,
+              result: true
+            })
+          } else {
+            logger.error([`Error when removing item from cart.`, error])
+            response.statusCode = 500
+            response.json({
+              code: 500,
+              result: null
+            })
+          }
         }
       })
   })
