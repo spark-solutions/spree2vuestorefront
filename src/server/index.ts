@@ -1,7 +1,8 @@
+import { errors } from '@spree/storefront-api-v2-sdk'
+import Instance from '@spree/storefront-api-v2-sdk/types/Instance'
+import { IOrderResult } from '@spree/storefront-api-v2-sdk/types/interfaces/Order'
 import cors from 'cors'
 import * as express from 'express'
-import Instance from 'spree-storefront-api-v2-js-sdk/src/Instance'
-import { IOrderResult } from 'spree-storefront-api-v2-js-sdk/src/interfaces/Order'
 import { JsonApiSingleResponse } from '../interfaces'
 import {
   findIncluded,

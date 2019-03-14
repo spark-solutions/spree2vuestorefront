@@ -1,4 +1,4 @@
-import Instance from 'spree-storefront-api-v2-js-sdk/src/Instance'
+import Instance from '@spree/storefront-api-v2-sdk/types/Instance'
 import { JsonApiDocument } from '../interfaces'
 import { getCategories, getCategoriesOnPath, logger } from '../utils'
 
