@@ -1,7 +1,7 @@
-import Instance from 'spree-storefront-api-v2-js-sdk/src/Instance'
+import Instance from '@spree/storefront-api-v2-sdk/types/Instance'
+import { IProducts } from '@spree/storefront-api-v2-sdk/types/interfaces/Product'
 import { findIncluded, findIncludedOfType } from '.'
 import { ESProductType, JsonApiDocument, JsonApiResponse, JsonApiSingleResponse } from '../interfaces'
-import { IProducts } from 'spree-storefront-api-v2-js-sdk/src/interfaces/Product';
 
 // productCustomAttributesPrefix is used as extra prefix to reduce the possibility of naming collisions with product
 // options and standard product fields.

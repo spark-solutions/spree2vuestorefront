@@ -1,5 +1,5 @@
+import { IToken } from '@spree/storefront-api-v2-sdk/types/interfaces/Token'
 import serializeError from 'serialize-error'
-import { IToken } from 'spree-storefront-api-v2-js-sdk/src/interfaces/Token'
 import * as winston from 'winston'
 import {
   Document,
