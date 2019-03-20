@@ -651,10 +651,10 @@
     lodash "^4.17.10"
     to-fast-properties "^2.0.0"
 
-"@spree/storefront-api-v2-sdk@^1.1.0":
-  version "1.1.0"
-  resolved "https://registry.yarnpkg.com/@spree/storefront-api-v2-sdk/-/storefront-api-v2-sdk-1.1.0.tgz#663fb0e8e16a511d6b2be799703efb65b8dce40a"
-  integrity sha512-KF/TMuPVSAQ3FQ6075EnQ1ZiwgxXDZwGc3l+XwEKiiM++ys8zUrXp5UYzOqLv4P6nKBx3azLNR6FKV2pkRf3Rg==
+"@spree/storefront-api-v2-sdk@^2.0.0":
+  version "2.0.0"
+  resolved "https://registry.yarnpkg.com/@spree/storefront-api-v2-sdk/-/storefront-api-v2-sdk-2.0.0.tgz#f8a81c619597e4c6de589ae0eca385177245ee1d"
+  integrity sha512-QGpI2Rc1ngfVaBc1tc6MDbqpiRNzXb6WmiYEjv2kWbXShAMb2VKzjm7o8ergS8TmVvD26+jmThNrXtpG523eCA==
   dependencies:
     axios "^0.18.0"
     lodash "^4.17.11"

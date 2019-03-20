@@ -1,3 +1,4 @@
+import { ResultResponse } from '@spree/storefront-api-v2-sdk/types/interfaces/ResultResponse'
 import { IToken } from '@spree/storefront-api-v2-sdk/types/interfaces/Token'
 import serializeError from 'serialize-error'
 import * as winston from 'winston'
@@ -111,7 +112,7 @@ const findIncludedOfType = (
 }
 
 const mapPages = (
-  makePaginationRequest: (page: number, perPage: number) => Promise<JsonApiListResponse>,
+  makePaginationRequest: (page: number, perPage: number) => Promise<ResultResponse<JsonApiListResponse>>,
   resourceCallback: (response: JsonApiResponse) => any,
   perPage: number,
   maxPages: number
@@ -124,30 +125,35 @@ const mapPages = (
         resolve()
       } else {
         makePaginationRequest(page, perPage)
-          .then((response) => {
-            const responseResources = response.data as JsonApiDocument[]
-            logger.info(`Downloaded page ${page} containing ${responseResources.length} resources, processing`)
-            responseResources.map((resource: JsonApiDocument, resourceIndex: number) => {
-              try {
-                resourceCallback({
-                  data: resource,
-                  included: response.included
-                })
-              } catch (error) {
-                logger.error(
-                  ['Resource import error', { page, per_page: perPage, resourcePageIndex: resourceIndex }, error]
-                )
-              }
-            })
+          .then((result) => {
+            if (result.isSuccess()) {
+              const response = result.success()
+              const responseResources = response.data as JsonApiDocument[]
+              logger.info(`Downloaded page ${page} containing ${responseResources.length} resources, processing`)
+              responseResources.map((resource: JsonApiDocument, resourceIndex: number) => {
+                try {
+                  resourceCallback({
+                    data: resource,
+                    included: response.included
+                  })
+                } catch (error) {
+                  logger.error(
+                    ['Resource import error', { page, per_page: perPage, resourcePageIndex: resourceIndex }, error]
+                  )
+                }
+              })
 
-            if (page < response.meta.total_pages) {
-              handlePage(page + 1)
+              if (page < response.meta.total_pages) {
+                handlePage(page + 1)
+              } else {
+                logger.info(`Pagination finished, total resources <= ${page * perPage}`)
+                resolve()
+              }
             } else {
-              logger.info(`Pagination finished, total resources <= ${page * perPage}`)
-              resolve()
+              logger.error(['Could not download page.', result.fail()])
+              reject()
             }
           })
-          .catch(reject)
       }
     }
     handlePage(0)
