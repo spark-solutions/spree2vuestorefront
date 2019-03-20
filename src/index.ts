@@ -1,5 +1,6 @@
 import { makeClient } from '@spree/storefront-api-v2-sdk'
 import Instance from '@spree/storefront-api-v2-sdk/types/Instance'
+import { ResultResponse } from '@spree/storefront-api-v2-sdk/types/interfaces/ResultResponse'
 import * as program from 'commander'
 import { config } from 'dotenv'
 import elasticsearch from 'elasticsearch'
@@ -60,8 +61,7 @@ const createIndices = () => {
 
 const setMapping = () => {
   const indexName = elasticSearchOptions.index
-  const typeName = 'product'
-  const indexMapping = {
+  const productMapping = {
     properties: {
       sku: {
         index: 'not_analyzed',
@@ -69,15 +69,33 @@ const setMapping = () => {
       }
     }
   }
+  const categoryMapping = {
+    properties: {
+      url_key: {
+        index: 'not_analyzed',
+        type: 'string'
+      }
+    }
+  }
+  const elasticClient = getElasticClient()
 
-  getElasticClient().indices.putMapping({
-    body: indexMapping,
+  elasticClient.indices.putMapping({
+    body: productMapping,
     index: indexName,
-    type: typeName
+    type: 'product'
   })
     .then(() => {
-      logger.info('Mapping set.')
-    }).catch(() => {
+      logger.info('Product mapping set. Setting category mapping.')
+      return elasticClient.indices.putMapping({
+        body: categoryMapping,
+        index: indexName,
+        type: 'category'
+      })
+    })
+    .then(() => {
+      logger.info('Category mapping set.')
+    })
+    .catch(() => {
       logger.error('Error: Cannot set mapping!')
     })
 }
@@ -114,7 +132,7 @@ const getSpreeClient = (): Instance => (
 )
 
 const preconfigMapPages = (
-  makePaginationRequest: (page: number, perPage: number) => Promise<JsonApiListResponse>,
+  makePaginationRequest: (page: number, perPage: number) => Promise<ResultResponse<JsonApiListResponse>>,
   resourceCallback: (response: JsonApiResponse) => any
 ): Promise<any> =>
   mapPages(makePaginationRequest, resourceCallback, paginationOptions.perPage, paginationOptions.maxPages)

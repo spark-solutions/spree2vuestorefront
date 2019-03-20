@@ -37,7 +37,7 @@ const convertToESCategories = (categories) => {
       path: getCategoriesOnPath(categories, [category.id]).map(({id}) => id).join('/'),
       position: category.attributes.position,
       product_count: relationships.products.data.length,
-      url_key: category.attributes.permalink.replace('-', '_')
+      url_key: category.attributes.permalink
     }
   })
 }
