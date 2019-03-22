@@ -651,10 +651,10 @@
     lodash "^4.17.10"
     to-fast-properties "^2.0.0"
 
-"@spree/storefront-api-v2-sdk@^2.0.0":
-  version "2.0.0"
-  resolved "https://registry.yarnpkg.com/@spree/storefront-api-v2-sdk/-/storefront-api-v2-sdk-2.0.0.tgz#f8a81c619597e4c6de589ae0eca385177245ee1d"
-  integrity sha512-QGpI2Rc1ngfVaBc1tc6MDbqpiRNzXb6WmiYEjv2kWbXShAMb2VKzjm7o8ergS8TmVvD26+jmThNrXtpG523eCA==
+"@spree/storefront-api-v2-sdk@^2.0.1":
+  version "2.0.1"
+  resolved "https://registry.yarnpkg.com/@spree/storefront-api-v2-sdk/-/storefront-api-v2-sdk-2.0.1.tgz#114a84b24bc0a675131c8587b336c572bf7c2880"
+  integrity sha512-wcG5sifEm9PLK4LIwpD5DAXDrx/4grVzozs9AKSeOd2I29o57GxMn0VrqPpP6A9LUwxDKEEOIYvpSjrnTMgD2w==
   dependencies:
     axios "^0.18.0"
     lodash "^4.17.11"
@@ -1889,10 +1889,10 @@ ee-first@1.1.1:
   resolved "https://registry.yarnpkg.com/ee-first/-/ee-first-1.1.1.tgz#590c61156b0ae2f4f0255732a158b266bc56b21d"
   integrity sha1-WQxhFWsK4vTwJVcyoViyZrxWsh0=
 
-elasticsearch@^15.3.1:
-  version "15.3.1"
-  resolved "https://registry.yarnpkg.com/elasticsearch/-/elasticsearch-15.3.1.tgz#5d826606a4b7be4acd59f102716cf03ed142b2bf"
-  integrity sha512-+fdf2yRlcJChMYq+sw+RyhXidzjdILq+zV25aK/bn8k4Elwa6Stlbua0I2nM7swVeTBFxTpsMZIOolWRcx59hA==
+elasticsearch@^15.4.1:
+  version "15.4.1"
+  resolved "https://registry.yarnpkg.com/elasticsearch/-/elasticsearch-15.4.1.tgz#28b54de22fea74003e57395e035926fe7b63b8dd"
+  integrity sha512-IL46Sv9krCKtpvlI37/vQVQrWx6QeT1OJhfWW6L3fIXzR1Vv5utO+DHYz8AosUI6vlkxShoq+y6sUIBhTF1OIg==
   dependencies:
     agentkeepalive "^3.4.1"
     chalk "^1.0.0"

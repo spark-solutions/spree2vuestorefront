@@ -3,7 +3,6 @@ import { IToken } from '@spree/storefront-api-v2-sdk/types/interfaces/Token'
 import serializeError from 'serialize-error'
 import * as winston from 'winston'
 import {
-  Document,
   ElasticOperation,
   ESImage,
   ImageStyle,
@@ -12,6 +11,7 @@ import {
   JsonApiResponse,
   SpreeProductImage
 } from '../interfaces'
+import FatalError from './FatalError'
 
 const makeLogger = () => {
   const { format: { combine, json, timestamp } } = winston
@@ -130,7 +130,7 @@ const mapPages = (
               const response = result.success()
               const responseResources = response.data as JsonApiDocument[]
               logger.info(`Downloaded page ${page} containing ${responseResources.length} resources, processing`)
-              responseResources.map((resource: JsonApiDocument, resourceIndex: number) => {
+              responseResources.forEach((resource: JsonApiDocument, resourceIndex: number) => {
                 try {
                   resourceCallback({
                     data: resource,
@@ -156,25 +156,24 @@ const mapPages = (
           })
       }
     }
-    handlePage(0)
+    handlePage(1)
   })
 }
 
 type ESBulkPromise = Promise<{ errors: any[], operations: ElasticOperation[], operationsCount: number }>
 
-const pushElasticIndex = (
+const pushElastic = (
   elasticClient,
   pendingOperations: ESBulkPromise,
   maxOperationsPerBulk: number,
   index: string,
-  type: string,
-  document: Document
+  newOperations: any[]
 ): ESBulkPromise => {
   return pendingOperations
     .then(({ errors, operations, operationsCount}) => {
       const expectedOperationsCount = operationsCount + 1
       if (expectedOperationsCount > maxOperationsPerBulk) {
-        return pushElasticIndex(
+        return pushElastic(
           elasticClient,
           Promise.resolve({
             errors,
@@ -183,11 +182,10 @@ const pushElasticIndex = (
           }),
           maxOperationsPerBulk,
           index,
-          type,
-          document
+          newOperations
         )
           .then(({ errors: updatedErrors }) => {
-            return pushElasticIndex(
+            return pushElastic(
               elasticClient,
               Promise.resolve({
                 errors: updatedErrors,
@@ -196,21 +194,13 @@ const pushElasticIndex = (
               }),
               maxOperationsPerBulk,
               index,
-              type,
-              document
+              newOperations
             )
           })
       }
       const updatedOperations = [
         ...operations,
-        {
-          index: {
-            _id: document.id,
-            _index: index,
-            _type: type
-          }
-        },
-        document
+        ...newOperations
       ] as ElasticOperation[]
       if (expectedOperationsCount === maxOperationsPerBulk) {
         return flushElastic(
@@ -239,17 +229,77 @@ const flushElastic = (
       if (operationsCount === 0) {
         return pendingOperations
       }
-      return elasticClient.bulk({ body: operations })
+      return elasticClient.bulk({
+        refresh: 'wait_for',
+        body: operations
+      })
         .then((response) => {
           return {
             errors: response.errors ?
-              [...errors, response.items.filter((item: any) => !!item[Object.keys(item)[0]].error)]
+              [...errors, ...response.items.filter((item: any) => !!item[Object.keys(item)[0]].error)]
               : errors,
             operations: [],
             operationsCount: 0
           }
         })
     })
+}
+
+const pushElasticIndex = (elasticClient, pendingOperations, bulkSize, index, type, document): ESBulkPromise => {
+  return pushElastic(
+    elasticClient,
+    pendingOperations,
+    bulkSize,
+    index,
+    [
+      {
+        index: {
+          _id: document.id,
+          _index: index,
+          _type: type
+        }
+      },
+      document
+    ]
+  )
+}
+
+const pushElasticUpdate = (
+  elasticClient, pendingOperations, bulkSize, index, type, documentPatch
+): ESBulkPromise => {
+  return pushElastic(
+    elasticClient,
+    pendingOperations,
+    bulkSize,
+    index,
+    [
+      {
+        update: {
+          _id: documentPatch.id,
+          _index: index,
+          _type: type
+        }
+      },
+      { doc: documentPatch }
+    ]
+  )
+}
+
+const elasticBulkDelete = (elasticClient, index, type, currentCursor: string): Promise<void> => {
+  return elasticClient.deleteByQuery({
+    refresh: 'wait_for',
+    index,
+    type,
+    body: {
+      query: {
+        bool: {
+          must_not: {
+            term: { cursor: currentCursor }
+          }
+        }
+      }
+    }
+  })
 }
 
 const getTokenOptions = (request): IToken => {
@@ -269,7 +319,17 @@ const getTokenOptions = (request): IToken => {
   return tokenOptions
 }
 
+const passFatal = (nonFatalCallback: (error?: any) => any) => {
+  return (maybeFatalError) => {
+    if (maybeFatalError instanceof FatalError) {
+      throw maybeFatalError
+    }
+    return nonFatalCallback(maybeFatalError)
+  }
+}
+
 export {
+  elasticBulkDelete,
   findIncluded,
   findIncludedOfType,
   flushElastic,
@@ -278,7 +338,10 @@ export {
   getTokenOptions,
   logger,
   mapPages,
-  pushElasticIndex
+  pushElasticIndex,
+  pushElasticUpdate,
+  FatalError,
+  passFatal
 }
 
 export * from './product'
