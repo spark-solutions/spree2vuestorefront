@@ -208,6 +208,28 @@ export default (spreeClient: Instance, serverOptions: any) => {
       })
   })
 
+  app.post('/api/cart/apply-coupon', (request, response) => {
+    const { coupon } = request.query
+
+    spreeClient.cart.applyCouponCode(getTokenOptions(request), { coupon_code: coupon })
+      .then((spreeResponse) => {
+        if (spreeResponse.isSuccess()) {
+          logger.info(`Add coupon code = ${coupon}.`)
+          response.json({
+            code: 200,
+            result: true
+          })
+        } else {
+          logger.error([`Could not add coupon code.`, spreeResponse.fail()])
+          response.statusCode = 500
+          response.json({
+            code: 500,
+            result: null
+          })
+        }
+      })
+  })
+
   app.post('/api/cart/shipping-information', (request, response) => {
     logger.info('Fetching shipping information.')
 
