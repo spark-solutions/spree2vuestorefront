@@ -208,6 +208,66 @@ export default (spreeClient: Instance, serverOptions: any) => {
       })
   })
 
+  app.post('/api/cart/shipping-information', (request, response) => {
+    logger.info('Fetching shipping information.')
+
+    const cartId = request.query.cartId
+    const extraParams = {
+      include: [
+        'line_items',
+        'line_items.variant',
+        'line_items.variant.product',
+        'line_items.variant.product.option_types'
+      ].join(',')
+    }
+
+    spreeClient.cart.show(getTokenOptions(request), extraParams)
+      .then((spreeResponse) => {
+        if (spreeResponse.isSuccess()) {
+          const successResponse: any = spreeResponse.success()
+          const resultAttr: any = successResponse.data.attributes
+          const lineItems = findIncludedOfType(successResponse, successResponse.data, 'line_items')
+          const items = lineItems.map((lineItem) => {
+            return getLineItem(successResponse, lineItem, cartId)
+          })
+
+          const result = {
+            totals: {
+              discount_amount: resultAttr.adjustment_total,
+              grand_total: resultAttr.total,
+              items_qty: resultAttr.items_qty,
+              shipping_amount: resultAttr.ship_total,
+              subtotal: resultAttr.item_total,
+              tax_amount: resultAttr.tax_total,
+              total_segments: [{
+                code: 'subtotal', title: 'Subtotal', value: resultAttr.item_total
+              }, {
+                code: 'shipping', title: 'Shipping', value: resultAttr.ship_total
+              }, {
+                code: 'discount', title: 'Discount', value: resultAttr.adjustment_total
+              }, {
+                code: 'tax', title: 'Tax', value: resultAttr.tax_total
+              }, {
+                code: 'grand_total', title: 'Grand Total', value: resultAttr.total
+              }],
+              items
+            }
+          }
+
+          response.json({
+            code: 200,
+            result
+          })
+        } else {
+          logger.error([`Could not get shipping information for cartId = ${cartId}.`, spreeResponse.fail()])
+          response.json({
+            code: 500,
+            result: null
+          })
+        }
+      })
+  })
+
   app.get('/api/stock/check', (request, response) => {
     const sku = request.query.sku
 

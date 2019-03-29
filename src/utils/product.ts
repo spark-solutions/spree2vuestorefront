@@ -48,6 +48,10 @@ const getLineItem = (response: JsonApiResponse, lineItem: JsonApiDocument, cartI
     item_id: lineItem.id,
     name: lineItem.attributes.name,
     price: lineItem.attributes.price,
+    price_incl_tax: lineItem.attributes.price, // not used in /cart/pull
+    discount_amount: Math.abs(lineItem.attributes.promo_total), // not used in /cart/pull
+    row_total: lineItem.attributes.price, // not used in /cart/pull
+    row_total_incl_tax: lineItem.attributes.price, // not used in /cart/pull
     product_type: productVariants.length === 0 ? ESProductType.Simple : ESProductType.Configurable,
     qty: lineItem.attributes.quantity,
     quote_id: cartId,
