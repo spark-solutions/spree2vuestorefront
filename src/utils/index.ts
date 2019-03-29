@@ -130,7 +130,7 @@ const mapPages = (
               const response = result.success()
               const responseResources = response.data as JsonApiDocument[]
               logger.info(`Downloaded page ${page} containing ${responseResources.length} resources, processing`)
-              responseResources.map((resource: JsonApiDocument, resourceIndex: number) => {
+              responseResources.forEach((resource: JsonApiDocument, resourceIndex: number) => {
                 try {
                   resourceCallback({
                     data: resource,
@@ -156,7 +156,7 @@ const mapPages = (
           })
       }
     }
-    handlePage(0)
+    handlePage(1)
   })
 }
 
@@ -243,7 +243,7 @@ const flushElastic = (
         .then((response) => {
           return {
             errors: response.errors ?
-              [...errors, response.items.filter((item: any) => !!item[Object.keys(item)[0]].error)]
+              [...errors, ...response.items.filter((item: any) => !!item[Object.keys(item)[0]].error)]
               : errors,
             operations: [],
             operationsCount: 0
