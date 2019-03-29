@@ -8,10 +8,12 @@ import importers from './importers'
 import { JsonApiListResponse, JsonApiResponse } from './interfaces'
 import server from './server'
 import {
+  elasticBulkDelete,
   flushElastic,
   logger,
   mapPages,
-  pushElasticIndex
+  pushElasticIndex,
+  pushElasticUpdate
 } from './utils'
 
 config()
@@ -100,7 +102,7 @@ const setMapping = () => {
     })
 }
 
-const getElasticBulkQueue = () => {
+const getElasticBulkOperations = () => {
   const elasticClient = getElasticClient()
   let pendingOperations = Promise.resolve({ errors: [], operations: [], operationsCount: 0 })
   return {
@@ -120,14 +122,26 @@ const getElasticBulkQueue = () => {
         type,
         document
       )
-      return pendingOperations
+    },
+    pushUpdate: (type, documentPatch) => {
+      pendingOperations = pushElasticUpdate(
+        elasticClient,
+        pendingOperations,
+        elasticSearchOptions.bulkSize,
+        elasticSearchOptions.index,
+        type,
+        documentPatch
+      )
+    },
+    elasticBulkDelete: (type, currentCursor) => {
+      return elasticBulkDelete(elasticClient, elasticSearchOptions.index, type, currentCursor)
     }
   }
 }
 
 const getSpreeClient = (): Instance => (
   makeClient({
-    host: spreeOptions.host + '/'
+    host: spreeOptions.host
   })
 )
 
@@ -150,15 +164,68 @@ program.command('remove-everything')
   })
 
 program.command('products')
-  .action(() => {
-    logger.info('Importing products')
-    importers.product(getSpreeClient(), getElasticBulkQueue(), preconfigMapPages)
+  .option(
+    '-d, --date [date]',
+    'Only replace products updated_at since this date (all products receive a new \'cursor\' anyway).'
+  )
+  .action((command) => {
+    logger.info('Importing products and removing unused')
+    let updatedSinceDate: Date | null
+    let cursor: string
+    if (command.date) {
+      updatedSinceDate = new Date(command.date)
+      cursor = updatedSinceDate.getTime().toString()
+      logger.info(
+        `Replacing products with updated_at date greater than ${updatedSinceDate} (--date "${command.date}")` +
+        ` and setting cursor to ${cursor}.`
+      )
+      logger.warn(
+        'The --date param is an optimization.' +
+        ' Make sure to provide a --date appropriate to the current Elastic Search state.' +
+        ' Avoid using too recent --date. If unsure when Elastic Search was updated last time - skip this param.'
+      )
+    } else {
+      updatedSinceDate = null
+      cursor = new Date().getTime().toString()
+      logger.info(`No date provided. Updating all products and setting cursor to ${cursor}.`)
+    }
+    importers.product(getSpreeClient(), getElasticBulkOperations(), preconfigMapPages, cursor, updatedSinceDate)
+      .catch(() => {
+        process.exit(1)
+      })
   })
 
 program.command('categories')
-  .action(() => {
+  .option(
+    '-d, --date [date]',
+    'Only replace categories updated_at since this date (all categories receive a new \'cursor\' anyway).'
+  )
+  .action((command) => {
     logger.info('Importing categories')
-    importers.category(getSpreeClient(), getElasticBulkQueue(), preconfigMapPages)
+    let updatedSinceDate: Date | null
+    let cursor: string
+    if (command.date) {
+      updatedSinceDate = new Date(command.date)
+      cursor = updatedSinceDate.getTime().toString()
+      logger.info(
+        `Replacing categories with updated_at date greater than ${updatedSinceDate} (--date "${command.date}")` +
+        ` and setting cursor to ${cursor}.`
+      )
+      logger.warn(
+        'The --date param is an optimization.' +
+        ' Make sure to provide a --date appropriate to the current Elastic Search state.' +
+        ' Avoid using too recent --date. If unsure when Elastic Search was updated last time - skip this param.'
+      )
+    } else {
+      updatedSinceDate = null
+      cursor = new Date().getTime().toString()
+      logger.info(`No date provided. Updating all categories and setting cursor to ${cursor}.`)
+    }
+
+    importers.category(getSpreeClient(), getElasticBulkOperations(), preconfigMapPages, cursor, updatedSinceDate)
+      .catch(() => {
+        process.exit(1)
+      })
   })
 
 program.command('product [ids...]')
