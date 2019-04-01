@@ -230,6 +230,37 @@ export default (spreeClient: Instance, serverOptions: any) => {
       })
   })
 
+  app.post('/api/cart/shipping-methods', (request, response) => {
+    logger.info('Fetching shipping methods.')
+    const countryId = request.query.country_id
+    spreeClient.cart.estimateShippingMethods(getTokenOptions(request), { country_iso: countryId })
+      .then((spreeResponse) => {
+        if (spreeResponse.isSuccess()) {
+          const shippingRates = spreeResponse.success().data
+          const shippingMethods = shippingRates.map((shippingRate) => {
+            return {
+              // carrier_code - Spree doesn't use carrier code and VS identifies shipping methods by method_code, so
+              // carrier_code can be undefined
+              amount: +shippingRate.attributes.final_price,
+              method_code: shippingRate.attributes.shipping_method_id.toString(),
+              method_title: shippingRate.attributes.name
+            }
+          })
+
+          response.json({
+            code: 200,
+            result: shippingMethods
+          })
+        } else {
+          logger.error([`Could not get estimated shipping methods.`, spreeResponse.fail()])
+          response.json({
+            code: 500,
+            result: null
+          })
+        }
+      })
+  })
+
   app.post('/api/cart/shipping-information', (request, response) => {
     logger.info('Fetching shipping information.')
 
