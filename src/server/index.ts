@@ -342,7 +342,7 @@ const getTotals = (spreeResponse, cartId) => {
   })
 
   const result = {
-    discount_amount: resultAttr.adjustment_total,
+    discount_amount: resultAttr.promo_total,
     grand_total: resultAttr.total,
     items_qty: resultAttr.items_qty,
     shipping_amount: resultAttr.ship_total,
@@ -353,7 +353,7 @@ const getTotals = (spreeResponse, cartId) => {
     }, {
       code: 'shipping', title: 'Shipping', value: resultAttr.ship_total
     }, {
-      code: 'discount', title: 'Discount', value: resultAttr.adjustment_total
+      code: 'discount', title: 'Discount', value: resultAttr.promo_total
     }, {
       code: 'tax', title: 'Tax', value: resultAttr.tax_total
     }, {
