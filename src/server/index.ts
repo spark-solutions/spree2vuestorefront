@@ -246,42 +246,46 @@ export default (spreeClient: Instance, serverOptions: any) => {
     spreeClient.cart.show(getTokenOptions(request), extraParams)
       .then((spreeResponse) => {
         if (spreeResponse.isSuccess()) {
-          const successResponse: any = spreeResponse.success()
-          const resultAttr: any = successResponse.data.attributes
-          const lineItems = findIncludedOfType(successResponse, successResponse.data, 'line_items')
-          const items = lineItems.map((lineItem) => {
-            return getLineItem(successResponse, lineItem, cartId)
-          })
+          const result = getTotals(spreeResponse, cartId)
 
-          const result = {
-            totals: {
-              discount_amount: resultAttr.adjustment_total,
-              grand_total: resultAttr.total,
-              items_qty: resultAttr.items_qty,
-              shipping_amount: resultAttr.ship_total,
-              subtotal: resultAttr.item_total,
-              tax_amount: resultAttr.tax_total,
-              total_segments: [{
-                code: 'subtotal', title: 'Subtotal', value: resultAttr.item_total
-              }, {
-                code: 'shipping', title: 'Shipping', value: resultAttr.ship_total
-              }, {
-                code: 'discount', title: 'Discount', value: resultAttr.adjustment_total
-              }, {
-                code: 'tax', title: 'Tax', value: resultAttr.tax_total
-              }, {
-                code: 'grand_total', title: 'Grand Total', value: resultAttr.total
-              }],
-              items
-            }
-          }
+          response.json({
+            code: 200,
+            result: { totals: { result } }
+          })
+        } else {
+          logger.error([`Could not get shipping information for cartId = ${cartId}.`, spreeResponse.fail()])
+          response.json({
+            code: 500,
+            result: null
+          })
+        }
+      })
+  })
+
+  app.get('/api/cart/totals', (request, response) => {
+    logger.info('Fetching totals.')
+
+    const cartId = request.query.cartId
+    const extraParams = {
+      include: [
+        'line_items',
+        'line_items.variant',
+        'line_items.variant.product',
+        'line_items.variant.product.option_types'
+      ].join(',')
+    }
+
+    spreeClient.cart.show(getTokenOptions(request), extraParams)
+      .then((spreeResponse) => {
+        if (spreeResponse.isSuccess()) {
+          const result = getTotals(spreeResponse, cartId)
 
           response.json({
             code: 200,
             result
           })
         } else {
-          logger.error([`Could not get shipping information for cartId = ${cartId}.`, spreeResponse.fail()])
+          logger.error([`Could not get totals for cartId = ${cartId}.`, spreeResponse.fail()])
           response.json({
             code: 500,
             result: null
@@ -327,4 +331,36 @@ export default (spreeClient: Instance, serverOptions: any) => {
   app.listen(serverOptions.port, () => {
     logger.info(`API listening on port ${serverOptions.port}`)
   })
+}
+
+const getTotals = (spreeResponse, cartId) => {
+  const successResponse: any = spreeResponse.success()
+  const resultAttr: any = successResponse.data.attributes
+  const lineItems = findIncludedOfType(successResponse, successResponse.data, 'line_items')
+  const items = lineItems.map((lineItem) => {
+    return getLineItem(successResponse, lineItem, cartId)
+  })
+
+  const result = {
+    discount_amount: resultAttr.adjustment_total,
+    grand_total: resultAttr.total,
+    items_qty: resultAttr.items_qty,
+    shipping_amount: resultAttr.ship_total,
+    subtotal: resultAttr.item_total,
+    tax_amount: resultAttr.tax_total,
+    total_segments: [{
+      code: 'subtotal', title: 'Subtotal', value: resultAttr.item_total
+    }, {
+      code: 'shipping', title: 'Shipping', value: resultAttr.ship_total
+    }, {
+      code: 'discount', title: 'Discount', value: resultAttr.adjustment_total
+    }, {
+      code: 'tax', title: 'Tax', value: resultAttr.tax_total
+    }, {
+      code: 'grand_total', title: 'Grand Total', value: resultAttr.total
+    }],
+    items
+  }
+
+  return result
 }
