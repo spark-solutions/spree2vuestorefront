@@ -35,6 +35,22 @@ export default (spreeClient: Instance, serverOptions: any) => {
             return getLineItem(successResponse, lineItem, cartId)
           })
 
+          const totalSegments = [{
+            code: 'subtotal', title: 'Subtotal', value: resultAttr.item_total
+          }, {
+            code: 'shipping', title: 'Shipping', value: resultAttr.ship_total
+          }, {
+            code: 'grand_total', title: 'Grand Total', value: resultAttr.total
+          }]
+
+          if (parseInt(resultAttr.promo_total, 10) !== 0) {
+            totalSegments.push({ code: 'discount', title: 'Discount', value: resultAttr.promo_total })
+          }
+
+          if (parseInt(resultAttr.tax_total, 10) !== 0) {
+            totalSegments.push({ code: 'tax', title: 'Tax', value: resultAttr.tax_total })
+          }
+
           const result = {
             discount_amount: resultAttr.promo_total,
             grand_total: resultAttr.total,
@@ -42,17 +58,7 @@ export default (spreeClient: Instance, serverOptions: any) => {
             shipping_amount: resultAttr.ship_total,
             subtotal: resultAttr.item_total,
             tax_amount: resultAttr.tax_total,
-            total_segments: [{
-              code: 'subtotal', title: 'Subtotal', value: resultAttr.item_total
-            }, {
-              code: 'shipping', title: 'Shipping', value: resultAttr.ship_total
-            }, {
-              code: 'discount', title: 'Discount', value: resultAttr.promo_total
-            }, {
-              code: 'tax', title: 'Tax', value: resultAttr.tax_total
-            }, {
-              code: 'grand_total', title: 'Grand Total', value: resultAttr.total
-            }],
+            total_segments: totalSegments,
             items
           }
           return Result.success(result)
