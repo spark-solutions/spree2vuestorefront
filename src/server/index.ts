@@ -1,6 +1,7 @@
-import { errors } from '@spree/storefront-api-v2-sdk'
+import { Result } from '@spree/storefront-api-v2-sdk'
 import Instance from '@spree/storefront-api-v2-sdk/types/Instance'
 import { IOrderResult } from '@spree/storefront-api-v2-sdk/types/interfaces/Order'
+import { Result as ResultType } from '@spree/storefront-api-v2-sdk/types/interfaces/Result'
 import cors from 'cors'
 import * as express from 'express'
 import { JsonApiSingleResponse } from '../interfaces'
@@ -14,6 +15,53 @@ import {
 } from '../utils'
 
 export default (spreeClient: Instance, serverOptions: any) => {
+  const getTotals = (tokenOptions, cartId): (Promise<ResultType<any, any>>) => {
+    const extraParams = {
+      include: [
+        'line_items',
+        'line_items.variant',
+        'line_items.variant.product',
+        'line_items.variant.product.option_types'
+      ].join(',')
+    }
+
+    return spreeClient.cart.show(tokenOptions, extraParams)
+      .then((spreeResponse) => {
+        if (spreeResponse.isSuccess()) {
+          const successResponse: any = spreeResponse.success()
+          const resultAttr: any = successResponse.data.attributes
+          const lineItems = findIncludedOfType(successResponse, successResponse.data, 'line_items')
+          const items = lineItems.map((lineItem) => {
+            return getLineItem(successResponse, lineItem, cartId)
+          })
+
+          const result = {
+            discount_amount: resultAttr.promo_total,
+            grand_total: resultAttr.total,
+            items_qty: resultAttr.items_qty,
+            shipping_amount: resultAttr.ship_total,
+            subtotal: resultAttr.item_total,
+            tax_amount: resultAttr.tax_total,
+            total_segments: [{
+              code: 'subtotal', title: 'Subtotal', value: resultAttr.item_total
+            }, {
+              code: 'shipping', title: 'Shipping', value: resultAttr.ship_total
+            }, {
+              code: 'discount', title: 'Discount', value: resultAttr.promo_total
+            }, {
+              code: 'tax', title: 'Tax', value: resultAttr.tax_total
+            }, {
+              code: 'grand_total', title: 'Grand Total', value: resultAttr.total
+            }],
+            items
+          }
+          return Result.success(result)
+        } else {
+          return spreeResponse
+        }
+      })
+  }
+
   const app = express()
   app.use(cors())
   app.use(express.json())
@@ -265,23 +313,13 @@ export default (spreeClient: Instance, serverOptions: any) => {
     logger.info('Fetching shipping information.')
 
     const cartId = request.query.cartId
-    const extraParams = {
-      include: [
-        'line_items',
-        'line_items.variant',
-        'line_items.variant.product',
-        'line_items.variant.product.option_types'
-      ].join(',')
-    }
 
-    spreeClient.cart.show(getTokenOptions(request), extraParams)
+    getTotals(getTokenOptions(request), cartId)
       .then((spreeResponse) => {
         if (spreeResponse.isSuccess()) {
-          const result = getTotals(spreeResponse, cartId)
-
           response.json({
             code: 200,
-            result: { totals: { result } }
+            result: { totals: spreeResponse.success() }
           })
         } else {
           logger.error([`Could not get shipping information for cartId = ${cartId}.`, spreeResponse.fail()])
@@ -297,23 +335,13 @@ export default (spreeClient: Instance, serverOptions: any) => {
     logger.info('Fetching totals.')
 
     const cartId = request.query.cartId
-    const extraParams = {
-      include: [
-        'line_items',
-        'line_items.variant',
-        'line_items.variant.product',
-        'line_items.variant.product.option_types'
-      ].join(',')
-    }
 
-    spreeClient.cart.show(getTokenOptions(request), extraParams)
+    getTotals(getTokenOptions(request), cartId)
       .then((spreeResponse) => {
         if (spreeResponse.isSuccess()) {
-          const result = getTotals(spreeResponse, cartId)
-
           response.json({
             code: 200,
-            result
+            result: spreeResponse.success()
           })
         } else {
           logger.error([`Could not get totals for cartId = ${cartId}.`, spreeResponse.fail()])
@@ -362,36 +390,4 @@ export default (spreeClient: Instance, serverOptions: any) => {
   app.listen(serverOptions.port, () => {
     logger.info(`API listening on port ${serverOptions.port}`)
   })
-}
-
-const getTotals = (spreeResponse, cartId) => {
-  const successResponse: any = spreeResponse.success()
-  const resultAttr: any = successResponse.data.attributes
-  const lineItems = findIncludedOfType(successResponse, successResponse.data, 'line_items')
-  const items = lineItems.map((lineItem) => {
-    return getLineItem(successResponse, lineItem, cartId)
-  })
-
-  const result = {
-    discount_amount: resultAttr.promo_total,
-    grand_total: resultAttr.total,
-    items_qty: resultAttr.items_qty,
-    shipping_amount: resultAttr.ship_total,
-    subtotal: resultAttr.item_total,
-    tax_amount: resultAttr.tax_total,
-    total_segments: [{
-      code: 'subtotal', title: 'Subtotal', value: resultAttr.item_total
-    }, {
-      code: 'shipping', title: 'Shipping', value: resultAttr.ship_total
-    }, {
-      code: 'discount', title: 'Discount', value: resultAttr.promo_total
-    }, {
-      code: 'tax', title: 'Tax', value: resultAttr.tax_total
-    }, {
-      code: 'grand_total', title: 'Grand Total', value: resultAttr.total
-    }],
-    items
-  }
-
-  return result
 }
