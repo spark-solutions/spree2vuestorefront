@@ -1,7 +1,10 @@
 import { Result } from '@spree/storefront-api-v2-sdk'
 import Instance from '@spree/storefront-api-v2-sdk/types/Instance'
-import { IOrderResult } from '@spree/storefront-api-v2-sdk/types/interfaces/Order'
+import { JsonApiResponse } from '@spree/storefront-api-v2-sdk/types/interfaces/JsonApi'
+import { IOrder, IOrderResult } from '@spree/storefront-api-v2-sdk/types/interfaces/Order'
+import { RelationType } from '@spree/storefront-api-v2-sdk/types/interfaces/Relationships'
 import { Result as ResultType } from '@spree/storefront-api-v2-sdk/types/interfaces/Result'
+import { ResultResponse } from '@spree/storefront-api-v2-sdk/types/interfaces/ResultResponse'
 import cors from 'cors'
 import * as express from 'express'
 import { JsonApiSingleResponse } from '../interfaces'
@@ -381,6 +384,126 @@ export default (spreeClient: Instance, serverOptions: any) => {
           code: 500,
           result: null
         })
+      })
+  })
+
+  app.post('/api/order', (request, response) => {
+    const billingAddress = request.body.addressInformation.billingAddress
+    const shippingAddress = request.body.addressInformation.shippingAddress
+    const orderToken = { orderToken: request.body.cart_id }
+
+    const orderInformation  = {
+      order: {
+        email: request.body.addressInformation.shippingAddress.email,
+        bill_address_attributes: {
+          firstname: billingAddress.firstname,
+          lastname: billingAddress.lastname,
+          address1: billingAddress.street[0],
+          address2: billingAddress.street[1],
+          city: billingAddress.city,
+          zipcode: billingAddress.postcode,
+          state_name: billingAddress.region,
+          country_iso: billingAddress.country_id,
+          phone: billingAddress.telephone
+        },
+        ship_address_attributes: {
+          firstname: shippingAddress.firstname,
+          lastname: shippingAddress.lastname,
+          address1: shippingAddress.street[0],
+          address2: shippingAddress.street[1],
+          city: shippingAddress.city,
+          zipcode: shippingAddress.postcode,
+          state_name: shippingAddress.region,
+          country_iso: shippingAddress.country_id,
+          phone: shippingAddress.telephone
+        },
+        payments_attributes: [{
+          payment_method_id: 3
+        }]
+      }
+    }
+
+    spreeClient.checkout.orderUpdate(orderToken, orderInformation)
+      .then((orderAddressResponse): Promise<ResultResponse<JsonApiResponse>> | ResultResponse<JsonApiResponse> => {
+        if (orderAddressResponse.isSuccess()) {
+          logger.info('Order addresses updated.')
+
+          return spreeClient.checkout.shippingMethods(orderToken, { include: 'shipping_rates' })
+        }
+
+        logger.error(['Order addresses could not be updated.', orderAddressResponse.fail()])
+
+        return orderAddressResponse
+      })
+      .then((shippingResponse): Promise<ResultResponse<JsonApiResponse>> | ResultResponse<JsonApiResponse> => {
+        if (shippingResponse.isSuccess()) {
+          logger.info('Shipping rates fetched.')
+
+          const selectedShipingRateId = request.body.addressInformation.shipping_method_code
+          const shippingRates = shippingResponse.success().data[0].relationships.shipping_rates.data as RelationType[]
+
+          const isEstimatedShippingExist = shippingRates.some((element) => {
+            return selectedShipingRateId ===
+              findIncluded(
+                shippingResponse.success(), element.type, element.id
+              ).attributes.shipping_method_id.toString()
+          })
+
+          if (isEstimatedShippingExist) {
+            const shippingOrderInformation = {
+              order: {
+                shipments_attributes: [{
+                  id: shippingResponse.success().data[0].id,
+                  selected_shipping_rate_id: selectedShipingRateId
+                }]
+              }
+            }
+
+            return spreeClient.checkout.orderUpdate(orderToken, shippingOrderInformation)
+          }
+
+          return Result.fail(new Error('Estimated shipping method is not avaliable.'))
+        }
+
+        logger.error(['Shipping rates could not be fetched.', shippingResponse.fail()])
+
+        return shippingResponse
+      })
+      .then((orderShippingResponse): Promise<ResultResponse<JsonApiResponse>> | ResultResponse<JsonApiResponse> => {
+        if (orderShippingResponse.isSuccess()) {
+          logger.info('Order shipping rate updated.')
+
+          return spreeClient.checkout.complete(orderToken)
+        }
+
+        logger.error(['Order shipping rate could not be updated.', orderShippingResponse.fail()])
+
+        return orderShippingResponse
+      })
+      .then((completeResponse) => {
+        if (completeResponse.isSuccess()) {
+          logger.info('Order completed.')
+
+          const successResponse = completeResponse.success() as IOrder
+          response.json({
+            code: 200,
+            result: {
+              backendOrderId: successResponse.data.attributes.number,
+              transferedAt: successResponse.data.attributes.updated_at
+            }
+          })
+        } else {
+          logger.error(['Order could not be completed.', completeResponse.fail()])
+
+          response.statusCode = 500
+          response.json({
+            code: 500,
+            result: completeResponse.fail().message
+          })
+        }
+      })
+      .catch((error) => {
+        logger.error(['Something went wrong.', error])
       })
   })
 
