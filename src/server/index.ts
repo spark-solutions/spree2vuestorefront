@@ -296,8 +296,7 @@ export default (spreeClient: Instance, serverOptions: any) => {
           const shippingRates = spreeResponse.success().data
           const shippingMethods = shippingRates.map((shippingRate) => {
             return {
-              // carrier_code - Spree doesn't use carrier code and VS identifies shipping methods by method_code, so
-              // carrier_code can be undefined
+              carrier_code: shippingRate.attributes.shipping_method_id.toString(),
               amount: +shippingRate.attributes.final_price,
               method_code: shippingRate.attributes.shipping_method_id.toString(),
               method_title: shippingRate.attributes.name
@@ -442,19 +441,19 @@ export default (spreeClient: Instance, serverOptions: any) => {
           const selectedShipingRateId = request.body.addressInformation.shipping_method_code
           const shippingRates = shippingResponse.success().data[0].relationships.shipping_rates.data as RelationType[]
 
-          const isEstimatedShippingExist = shippingRates.some((element) => {
+          const shippingRate = shippingRates.find((element) => {
             return selectedShipingRateId ===
               findIncluded(
                 shippingResponse.success(), element.type, element.id
               ).attributes.shipping_method_id.toString()
           })
 
-          if (isEstimatedShippingExist) {
+          if (typeof shippingRate !== undefined) {
             const shippingOrderInformation = {
               order: {
                 shipments_attributes: [{
                   id: shippingResponse.success().data[0].id,
-                  selected_shipping_rate_id: selectedShipingRateId
+                  selected_shipping_rate_id: parseInt(shippingRate.id, 0)
                 }]
               }
             }
