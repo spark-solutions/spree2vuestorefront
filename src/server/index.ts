@@ -1,10 +1,13 @@
-import { Result } from '@spree/storefront-api-v2-sdk'
+import { errors, Result } from '@spree/storefront-api-v2-sdk'
+import { SpreeSDKError } from '@spree/storefront-api-v2-sdk/types/errors'
 import Instance from '@spree/storefront-api-v2-sdk/types/Instance'
+import { NestedAttributes } from '@spree/storefront-api-v2-sdk/types/interfaces/endpoints/CheckoutClass'
 import { JsonApiResponse } from '@spree/storefront-api-v2-sdk/types/interfaces/JsonApi'
 import { IOrder, IOrderResult } from '@spree/storefront-api-v2-sdk/types/interfaces/Order'
 import { RelationType } from '@spree/storefront-api-v2-sdk/types/interfaces/Relationships'
 import { Result as ResultType } from '@spree/storefront-api-v2-sdk/types/interfaces/Result'
 import { ResultResponse } from '@spree/storefront-api-v2-sdk/types/interfaces/ResultResponse'
+import { IToken } from '@spree/storefront-api-v2-sdk/types/interfaces/Token'
 import cors from 'cors'
 import * as express from 'express'
 import { JsonApiSingleResponse } from '../interfaces'
@@ -18,6 +21,10 @@ import {
 } from '../utils'
 
 export default (spreeClient: Instance, serverOptions: any) => {
+  type MaybePromiseResult = Promise<ResultResponse<JsonApiResponse>> | ResultResponse<JsonApiResponse>
+
+  class ShippingMethodMissingError extends Error { }
+
   const getTotals = (tokenOptions, cartId): (Promise<ResultType<any, any>>) => {
     const extraParams = {
       include: [
@@ -67,6 +74,113 @@ export default (spreeClient: Instance, serverOptions: any) => {
           return Result.success(result)
         } else {
           return spreeResponse
+        }
+      })
+  }
+
+  /**
+   * Create a Spree order update payload from order payload submitted by VS. Ignores shipping method from VS, because it
+   * cannot be easily converted to Spree order shipments update.
+   */
+  const adaptOrder = (order): NestedAttributes => {
+    const billingAddress = order.addressInformation.billingAddress
+    const shippingAddress = order.addressInformation.shippingAddress
+
+    let orderInformation: NestedAttributes = {
+      order: {
+        payments_attributes: [{
+          payment_method_id: 3
+        }]
+      }
+    }
+
+    if (shippingAddress) {
+      orderInformation = {
+        ...orderInformation,
+        order: {
+          ...orderInformation.order,
+          email: shippingAddress.email,
+          ship_address_attributes: {
+            firstname: shippingAddress.firstname,
+            lastname: shippingAddress.lastname,
+            address1: shippingAddress.street[0],
+            address2: shippingAddress.street[1],
+            city: shippingAddress.city,
+            zipcode: shippingAddress.postcode,
+            state_name: shippingAddress.region,
+            country_iso: shippingAddress.country_id,
+            phone: shippingAddress.telephone
+          }
+        }
+      }
+    }
+
+    if (billingAddress) {
+      orderInformation = {
+        ...orderInformation,
+        order: {
+          ...orderInformation.order,
+          bill_address_attributes: {
+            firstname: billingAddress.firstname,
+            lastname: billingAddress.lastname,
+            address1: billingAddress.street[0],
+            address2: billingAddress.street[1],
+            city: billingAddress.city,
+            zipcode: billingAddress.postcode,
+            state_name: billingAddress.region,
+            country_iso: billingAddress.country_id,
+            phone: billingAddress.telephone
+          }
+        }
+      }
+    }
+    return orderInformation
+  }
+
+  const spreeErrorToString = (error: SpreeSDKError): string => {
+    // FIXME: provide nicer names for fields and nicer string format
+    if (error instanceof errors.BasicSpreeError) {
+      return error.summary
+    }
+    return error.message
+  }
+
+  const updateShippingMethod = (orderToken: IToken, shippingRateId: string) => {
+    return spreeClient.checkout.shippingMethods(orderToken, { include: 'shipping_rates' })
+      .then((shippingResponse): MaybePromiseResult => {
+        if (shippingResponse.isSuccess()) {
+          logger.info('Shipping rates fetched.')
+          const shipments = shippingResponse.success().data
+          if (shipments.length > 0) {
+            logger.info('At least one shipment choice available for order.')
+            const pickedShipment = shipments[0]
+            const shippingRates = pickedShipment.relationships.shipping_rates.data as RelationType[]
+            const shippingRate = shippingRates.find((element) => {
+              return shippingRateId ===
+                findIncluded(
+                  shippingResponse.success(), element.type, element.id
+                ).attributes.shipping_method_id.toString()
+            })
+            if (typeof shippingRate !== undefined) {
+              const shippingOrderInformation = {
+                order: {
+                  shipments_attributes: [
+                    {
+                      id: parseInt(pickedShipment.id, 0),
+                      selected_shipping_rate_id: parseInt(shippingRate.id, 0)
+                    }
+                  ]
+                }
+              }
+              return spreeClient.checkout.orderUpdate(orderToken, shippingOrderInformation)
+            }
+          } else {
+            logger.info('No shipment choices available for order.')
+          }
+          return Result.fail(new ShippingMethodMissingError('Estimated shipping method is not avaliable.'))
+        } else {
+          logger.error(['Shipping rates could not be fetched.', shippingResponse.fail()])
+          return shippingResponse
         }
       })
   }
@@ -319,18 +433,30 @@ export default (spreeClient: Instance, serverOptions: any) => {
 
   app.post('/api/cart/shipping-information', (request, response) => {
     logger.info('Fetching shipping information.')
-
     const cartId = request.query.cartId
+    const orderToken = getTokenOptions(request)
+    const selectedShippingRateId = request.body.addressInformation.shippingMethodCode
+    logger.info(`Updating shipping method.`)
 
-    getTotals(getTokenOptions(request), cartId)
-      .then((spreeResponse) => {
-        if (spreeResponse.isSuccess()) {
+    updateShippingMethod(orderToken, selectedShippingRateId)
+      .then((shippingResponse) => {
+        // If a shipping method doesn't exist, still provide totals, but don't update shipping method in checkout. This
+        // is to prevent errors before user fills shipping address (VS calls shipping-information earlier as well).
+        if (shippingResponse.isSuccess() || (shippingResponse.fail() instanceof ShippingMethodMissingError)) {
+          logger.info('Order shipping method updated or update skipped due to empty shipping address. Fetching totals.')
+          return getTotals(orderToken, cartId)
+        }
+        return shippingResponse
+      })
+      .then((totalsResponse) => {
+        if (totalsResponse.isSuccess()) {
+          logger.info('Totals fetched.')
           response.json({
             code: 200,
-            result: { totals: spreeResponse.success() }
+            result: { totals: totalsResponse.success() }
           })
         } else {
-          logger.error([`Could not get shipping information for cartId = ${cartId}.`, spreeResponse.fail()])
+          logger.error([`Could not get shipping information for cartId = ${cartId}.`, totalsResponse.fail()])
           response.json({
             code: 500,
             result: null
@@ -387,88 +513,25 @@ export default (spreeClient: Instance, serverOptions: any) => {
   })
 
   app.post('/api/order', (request, response) => {
-    const billingAddress = request.body.addressInformation.billingAddress
-    const shippingAddress = request.body.addressInformation.shippingAddress
+    // /api/order requests provide cart_id inside the body instead of the query string.
     const orderToken = { orderToken: request.body.cart_id }
 
-    const orderInformation  = {
-      order: {
-        email: request.body.addressInformation.shippingAddress.email,
-        bill_address_attributes: {
-          firstname: billingAddress.firstname,
-          lastname: billingAddress.lastname,
-          address1: billingAddress.street[0],
-          address2: billingAddress.street[1],
-          city: billingAddress.city,
-          zipcode: billingAddress.postcode,
-          state_name: billingAddress.region,
-          country_iso: billingAddress.country_id,
-          phone: billingAddress.telephone
-        },
-        ship_address_attributes: {
-          firstname: shippingAddress.firstname,
-          lastname: shippingAddress.lastname,
-          address1: shippingAddress.street[0],
-          address2: shippingAddress.street[1],
-          city: shippingAddress.city,
-          zipcode: shippingAddress.postcode,
-          state_name: shippingAddress.region,
-          country_iso: shippingAddress.country_id,
-          phone: shippingAddress.telephone
-        },
-        payments_attributes: [{
-          payment_method_id: 3
-        }]
-      }
-    }
+    const orderInformation = adaptOrder(request.body)
 
     spreeClient.checkout.orderUpdate(orderToken, orderInformation)
-      .then((orderAddressResponse): Promise<ResultResponse<JsonApiResponse>> | ResultResponse<JsonApiResponse> => {
+      .then((orderAddressResponse): MaybePromiseResult => {
         if (orderAddressResponse.isSuccess()) {
           logger.info('Order addresses updated.')
 
-          return spreeClient.checkout.shippingMethods(orderToken, { include: 'shipping_rates' })
+          const selectedShipingRateId = request.body.addressInformation.shipping_method_code
+          return updateShippingMethod(orderToken, selectedShipingRateId)
         }
 
         logger.error(['Order addresses could not be updated.', orderAddressResponse.fail()])
 
         return orderAddressResponse
       })
-      .then((shippingResponse): Promise<ResultResponse<JsonApiResponse>> | ResultResponse<JsonApiResponse> => {
-        if (shippingResponse.isSuccess()) {
-          logger.info('Shipping rates fetched.')
-
-          const selectedShipingRateId = request.body.addressInformation.shipping_method_code
-          const shippingRates = shippingResponse.success().data[0].relationships.shipping_rates.data as RelationType[]
-
-          const shippingRate = shippingRates.find((element) => {
-            return selectedShipingRateId ===
-              findIncluded(
-                shippingResponse.success(), element.type, element.id
-              ).attributes.shipping_method_id.toString()
-          })
-
-          if (typeof shippingRate !== undefined) {
-            const shippingOrderInformation = {
-              order: {
-                shipments_attributes: [{
-                  id: shippingResponse.success().data[0].id,
-                  selected_shipping_rate_id: parseInt(shippingRate.id, 0)
-                }]
-              }
-            }
-
-            return spreeClient.checkout.orderUpdate(orderToken, shippingOrderInformation)
-          }
-
-          return Result.fail(new Error('Estimated shipping method is not avaliable.'))
-        }
-
-        logger.error(['Shipping rates could not be fetched.', shippingResponse.fail()])
-
-        return shippingResponse
-      })
-      .then((orderShippingResponse): Promise<ResultResponse<JsonApiResponse>> | ResultResponse<JsonApiResponse> => {
+      .then((orderShippingResponse): MaybePromiseResult => {
         if (orderShippingResponse.isSuccess()) {
           logger.info('Order shipping rate updated.')
 
@@ -497,12 +560,39 @@ export default (spreeClient: Instance, serverOptions: any) => {
           response.statusCode = 500
           response.json({
             code: 500,
-            result: completeResponse.fail().message
+            result: spreeErrorToString(completeResponse.fail())
           })
         }
       })
       .catch((error) => {
         logger.error(['Something went wrong.', error])
+      })
+  })
+
+  app.post('/api/update-order', (request, response) => {
+    const orderToken = { orderToken: request.body.cart_id }
+    const orderInformation = adaptOrder(request.body)
+
+    spreeClient.checkout.orderUpdate(orderToken, orderInformation)
+      .then((updateResponse) => {
+        if (updateResponse.isSuccess()) {
+          logger.info('Order updated.')
+          const successResponse = updateResponse.success()
+          response.json({
+            code: 200,
+            result: {
+              backendOrderId: successResponse.data.attributes.number,
+              transferedAt: successResponse.data.attributes.updated_at
+            }
+          })
+        } else {
+          logger.error(['Order could not be updated.', updateResponse.fail()])
+          response.statusCode = 500
+          response.json({
+            code: 500,
+            result: spreeErrorToString(updateResponse.fail())
+          })
+        }
       })
   })
 
