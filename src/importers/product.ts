@@ -145,6 +145,8 @@ const importProducts = (
               // created_at - Spree doesn't return created date, use available_on as replacement
               created_at: product.attributes.available_on,
               cursor,
+              prodopt_1: ['1', '2', '3', '4'].filter(() => Math.random() > 0.5),
+              prodopt_1_options: ['1', '2', '3', '4'].filter(() => Math.random() > 0.5),
               description: defaultVariant.attributes.description,
               final_price: price, // 'final_price' field is used when filtering products in a category
               has_options: hasOptions, // easy way of checking if variants have selectable options

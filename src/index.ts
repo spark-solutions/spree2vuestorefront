@@ -66,8 +66,13 @@ const setMapping = () => {
   const productMapping = {
     properties: {
       sku: {
-        index: 'not_analyzed',
-        type: 'string'
+        type: 'keyword'
+      },
+      prodopt_1: {
+        type: 'keyword'
+      },
+      prodopt_1_options: {
+        type: 'keyword'
       }
     }
   }
