@@ -1,0 +1,14 @@
+version: '2.0'
+services:
+  app:
+    image: spark-solutions/spree2vs
+    build: .
+    container_name: "spark-solutions_spree2vs"
+    env_file: .docker.env
+    ports:
+      - "${SERVER_PORT}:${SERVER_PORT}"
+    entrypoint: tail -f /dev/null
+    volumes:
+      - ".:/app"
+    env_file:
+      - .env-sample

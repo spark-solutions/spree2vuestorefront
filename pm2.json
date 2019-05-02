@@ -1,0 +1,20 @@
+{
+  "apps": [
+    {
+      "name": "api",
+      "interpreter": "node",
+      "script": "./dist/index.js",
+      "args": "api-server",
+      "log_date_format": "YYYY-MM-DD HH:mm:ss",
+      "watch": false
+    },
+    {
+      "name": "cron",
+      "script": "yarn run import:all",
+      "cron_restart": "${CRON_SCHEDULE}",
+      "autorestart": false,
+      "log_date_format": "YYYY-MM-DD HH:mm:ss",
+      "watch": false
+    }
+  ]
+}
