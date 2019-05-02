@@ -53,11 +53,11 @@ const createIndices = () => {
     index: elasticSearchOptions.index
   })
     .then(() => {
-      logger.info('Indices created.')
-      setMapping()
+      logger.info('Indices created. Mapping fields.')
+      return setMapping()
     })
-    .catch(() => {
-      logger.error('Error: Cannot create indices!')
+    .catch((error) => {
+      logger.error(['Error: Cannot create indices or set mapping.', error])
     })
 }
 
@@ -81,7 +81,7 @@ const setMapping = () => {
   }
   const elasticClient = getElasticClient()
 
-  elasticClient.indices.putMapping({
+  return elasticClient.indices.putMapping({
     body: productMapping,
     index: indexName,
     type: 'product'
@@ -96,9 +96,6 @@ const setMapping = () => {
     })
     .then(() => {
       logger.info('Category mapping set.')
-    })
-    .catch(() => {
-      logger.error('Error: Cannot set mapping!')
     })
 }
 
@@ -158,9 +155,16 @@ program.command('create-indices')
 
 program.command('remove-everything')
   .action(() => {
+    logger.info('Removing index')
     getElasticClient().indices.delete({
       index: elasticSearchOptions.index
     })
+      .then(() => {
+        logger.info('Index removed')
+      })
+      .catch((error) => {
+        logger.error(['Error: Cannot create indices!', error])
+      })
   })
 
 program.command('products')
