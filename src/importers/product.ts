@@ -107,6 +107,7 @@ const importProducts = (
               .map((optionType) => {
                 return {
                   attribute_code: generateOptionAttributeCode(optionType.id),
+                  attribute_name: optionType.attributes.name,
                   // attribute_id - only required when setConfigurableProductOptions: true, should equal attribute_code
                   label: optionType.attributes.presentation,
                   values: optionType.relationships.option_values.data
@@ -126,6 +127,20 @@ const importProducts = (
                 }
               })
 
+            const filterObject = {}
+
+            configurableOptions.forEach((filterType) => {
+              const filterOptionArray = []
+
+              variants.forEach((variant) => {
+                if (filterOptionArray.indexOf(variant[filterType.attribute_code]) === -1) {
+                  filterOptionArray.push(variant[filterType.attribute_code])
+                }
+              })
+
+              filterObject[filterType.attribute_name] = filterOptionArray
+            })
+
             const price = parseFloat(defaultVariant.attributes.price)
             const productCategories = getCategoriesOnPath(categories, relationships.taxons.data.map(({ id }) => id))
 
@@ -139,6 +154,7 @@ const importProducts = (
                   name: category.attributes.name
                 }
               )),
+              ...filterObject,
               category_ids: productCategories.map((category) => +category.id),
               configurable_children: variants,
               configurable_options: configurableOptions,
@@ -196,9 +212,28 @@ const importProducts = (
               } as Document
             })
 
+            const esOptionTypes = configurableOptions.map((optionRecord) => {
+              return {
+                id: optionRecord.attribute_code,
+                is_user_defined: true,
+                is_visible: true,
+                attribute_code: optionRecord.attribute_name,
+                options: optionRecord.values.map((optionValue) => {
+                  return {
+                    label: optionValue.label,
+                    value: optionValue.value_index
+                  }
+                })
+              }
+            })
+
+            // TODO: Attributes are always replaced. Unused attributes are never removed. Consider patching instead,
+            // same way products are.
             esAttributes.forEach((attr) => {
-              // TODO: Attributes are always replaced. Unused attributes are never removed. Consider patching instead,
-              // same way products are.
+              elasticBulkOperations.pushIndex('attribute', attr)
+            })
+
+            esOptionTypes.forEach((attr) => {
               elasticBulkOperations.pushIndex('attribute', attr)
             })
           }
