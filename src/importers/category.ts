@@ -1,4 +1,4 @@
-import Instance from '@spree/storefront-api-v2-sdk/types/Instance'
+import Client from '@spree/storefront-api-v2-sdk/types/Client'
 import { JsonApiDocument } from '../interfaces'
 import { FatalError, getCategories, getCategoriesOnPath, logger, passFatal } from '../utils'
 
@@ -42,7 +42,7 @@ const convertToESCategory = (category, categories, cursor) => {
 }
 
 const importCategories = (
-  spreeClient: Instance,
+  spreeClient: Client,
   elasticBulkOperations: any,
   preconfigMapPages: any,
   cursor: string,
