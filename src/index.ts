@@ -66,16 +66,14 @@ const setMapping = () => {
   const productMapping = {
     properties: {
       sku: {
-        index: 'not_analyzed',
-        type: 'string'
+        type: 'keyword'
       }
     }
   }
   const categoryMapping = {
     properties: {
       url_key: {
-        index: 'not_analyzed',
-        type: 'string'
+        type: 'keyword'
       }
     }
   }
