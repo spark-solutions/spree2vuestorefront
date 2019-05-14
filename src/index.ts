@@ -67,6 +67,12 @@ const setMapping = () => {
     properties: {
       sku: {
         type: 'keyword'
+      },
+      size: {
+        type: 'keyword'
+      },
+      color: {
+        type: 'keyword'
       }
     }
   }

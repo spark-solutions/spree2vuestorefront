@@ -5,8 +5,8 @@ import { ESProductType, JsonApiDocument, JsonApiResponse, JsonApiSingleResponse 
 
 // productCustomAttributesPrefix is used as extra prefix to reduce the possibility of naming collisions with product
 // options and standard product fields.
+const productOptionAttributePrefix = ''
 const productCustomAttributesPrefix = 'prodattr_'
-const productOptionAttributePrefix = 'prodopt_'
 
 const generateOptionAttributeCode = (attributeIdentifier) => `${productOptionAttributePrefix}${attributeIdentifier}`
 const generateCustomAttributeCode = (attributeIdentifier) => `${productCustomAttributesPrefix}${attributeIdentifier}`
