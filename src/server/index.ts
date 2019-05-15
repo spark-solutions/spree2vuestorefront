@@ -62,6 +62,7 @@ export default (spreeClient: Instance, serverOptions: any) => {
           }
 
           const result = {
+            coupon_code: parseInt(resultAttr.promo_total, 10) !== 0 ? '42' : '',
             discount_amount: resultAttr.promo_total,
             grand_total: resultAttr.total,
             items_qty: resultAttr.items_qty,
@@ -392,6 +393,27 @@ export default (spreeClient: Instance, serverOptions: any) => {
           })
         } else {
           logger.error([`Could not add coupon code.`, spreeResponse.fail()])
+          response.statusCode = 500
+          response.json({
+            code: 500,
+            result: null
+          })
+        }
+      })
+  })
+
+  app.post('/api/cart/delete-coupon', (request, response) => {
+    spreeClient.cart.removeCouponCode(getTokenOptions(request))
+      .then((spreeResponse) => {
+        if (spreeResponse.isSuccess()) {
+          logger.info(`Remove coupon code.`)
+
+          response.json({
+            code: 200,
+            result: true
+          })
+        } else {
+          logger.error([`Error removing coupon code.`, spreeResponse.fail()])
           response.statusCode = 500
           response.json({
             code: 500,
