@@ -205,7 +205,7 @@ const importProducts = (
                 attribute_code: id,
                 attribute_id: id,
                 default_frontend_label: propertyRecord.attributes.name,
-                id: +id,
+                id: +propertyRecord.id,
                 is_user_defined: true,
                 is_visible: true,
                 is_visible_on_front: true
@@ -214,7 +214,7 @@ const importProducts = (
 
             const esOptionTypes = configurableOptions.map((optionRecord) => {
               return {
-                id: optionRecord.attribute_code,
+                id: +optionRecord.attribute_code,
                 is_user_defined: true,
                 is_visible: true,
                 attribute_code: optionRecord.attribute_name,
