@@ -1,5 +1,5 @@
 import { makeClient } from '@spree/storefront-api-v2-sdk'
-import Instance from '@spree/storefront-api-v2-sdk/types/Instance'
+import Client from '@spree/storefront-api-v2-sdk/types/Client'
 import { ResultResponse } from '@spree/storefront-api-v2-sdk/types/interfaces/ResultResponse'
 import * as program from 'commander'
 import { config } from 'dotenv'
@@ -140,7 +140,7 @@ const getElasticBulkOperations = () => {
   }
 }
 
-const getSpreeClient = (): Instance => (
+const getSpreeClient = (): Client => (
   makeClient({
     host: spreeOptions.host
   })

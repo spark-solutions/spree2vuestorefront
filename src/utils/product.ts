@@ -1,4 +1,4 @@
-import Instance from '@spree/storefront-api-v2-sdk/types/Instance'
+import Client from '@spree/storefront-api-v2-sdk/types/Client'
 import { IProducts } from '@spree/storefront-api-v2-sdk/types/interfaces/Product'
 import { findIncluded, findIncludedOfType } from '.'
 import { ESProductType, JsonApiDocument, JsonApiResponse, JsonApiSingleResponse } from '../interfaces'
@@ -60,7 +60,7 @@ const getLineItem = (response: JsonApiResponse, lineItem: JsonApiDocument, cartI
   }
 }
 
-const variantFromSku = (spreeClient: Instance, sku: string): Promise<JsonApiSingleResponse | null> => {
+const variantFromSku = (spreeClient: Client, sku: string): Promise<JsonApiSingleResponse | null> => {
   return spreeClient.products.list({
     filter: {
       skus: sku

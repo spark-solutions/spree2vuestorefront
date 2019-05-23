@@ -1,4 +1,4 @@
-import Instance from '@spree/storefront-api-v2-sdk/types/Instance'
+import Client from '@spree/storefront-api-v2-sdk/types/Client'
 import {
   Document,
   ESProductType,
@@ -30,7 +30,7 @@ const sortyByPositionAttribute = (a: PositionedDocument, b: PositionedDocument) 
 }
 
 const importProducts = (
-  spreeClient: Instance,
+  spreeClient: Client,
   elasticBulkOperations: any,
   preconfigMapPages: any,
   cursor: string,

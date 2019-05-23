@@ -1,6 +1,6 @@
 import { errors, Result } from '@spree/storefront-api-v2-sdk'
 import { SpreeSDKError } from '@spree/storefront-api-v2-sdk/types/errors'
-import Instance from '@spree/storefront-api-v2-sdk/types/Instance'
+import Client from '@spree/storefront-api-v2-sdk/types/Client'
 import { NestedAttributes } from '@spree/storefront-api-v2-sdk/types/interfaces/endpoints/CheckoutClass'
 import { JsonApiResponse } from '@spree/storefront-api-v2-sdk/types/interfaces/JsonApi'
 import { IOrder, IOrderResult } from '@spree/storefront-api-v2-sdk/types/interfaces/Order'
@@ -20,7 +20,7 @@ import {
   variantFromSku
 } from '../utils'
 
-export default (spreeClient: Instance, serverOptions: any) => {
+export default (spreeClient: Client, serverOptions: any) => {
   type MaybePromiseResult = Promise<ResultResponse<JsonApiResponse>> | ResultResponse<JsonApiResponse>
 
   class ShippingMethodMissingError extends Error { }

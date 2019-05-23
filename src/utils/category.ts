@@ -1,10 +1,10 @@
-import Instance from '@spree/storefront-api-v2-sdk/types/Instance'
+import Client from '@spree/storefront-api-v2-sdk/types/Client'
 import { JsonApiDocument, JsonApiResponse } from '../interfaces'
 
 /**
  * Eager loading of all Spree categories
  */
-const getCategories = (spreeClient: Instance, preconfigMapPages): Promise<JsonApiDocument[]> => {
+const getCategories = (spreeClient: Client, preconfigMapPages): Promise<JsonApiDocument[]> => {
   const categories: JsonApiDocument[] = []
 
   return preconfigMapPages(
