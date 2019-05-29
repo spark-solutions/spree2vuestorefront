@@ -84,14 +84,38 @@ export default (spreeClient: Client, serverOptions: any) => {
    * cannot be easily converted to Spree order shipments update.
    */
   const adaptOrder = (order): NestedAttributes => {
-    const billingAddress = order.addressInformation.billingAddress
-    const shippingAddress = order.addressInformation.shippingAddress
+    const {
+      billingAddress,
+      shippingAddress,
+      payment_method_code: paymentMethod,
+      payment_method_additional: paymentMethodAdditional
+    } = order.addressInformation
+    let orderInformation: NestedAttributes = {}
 
-    let orderInformation: NestedAttributes = {
-      order: {
-        payments_attributes: [{
-          payment_method_id: 3
-        }]
+    if (paymentMethod) {
+      orderInformation = {
+        ...orderInformation,
+        order: {
+          payments_attributes: [{
+            payment_method_id: paymentMethod
+          }]
+        }
+      }
+
+      if (paymentMethodAdditional.id) {
+        orderInformation = {
+          ...orderInformation,
+          payment_source: {
+            [paymentMethod]: {
+              gateway_payment_profile_id: paymentMethodAdditional.id,
+              name: `${billingAddress.firstname} ${billingAddress.lastname}`,
+              cc_type: paymentMethodAdditional.card.brand,
+              last_digits: parseInt(paymentMethodAdditional.card.last4, 10),
+              month: parseInt(paymentMethodAdditional.card.exp_month, 10),
+              year: parseInt(paymentMethodAdditional.card.exp_year, 10)
+            }
+          }
+        }
       }
     }
 
