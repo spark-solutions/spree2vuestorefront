@@ -10,7 +10,11 @@
     "build": "webpack",
     "watch": "webpack --watch",
     "lint:fix": "tslint src/**/*.ts --fix",
-    "server": "nodemon ./dist/index.js api-server"
+    "server": "nodemon ./dist/index.js api-server",
+    "import:products": "./dist/index.js products",
+    "import:categories": "./dist/index.js categories",
+    "import:all": "yarn run import:products && yarn run import:categories",
+    "server-cron": "pm2 start pm2.json --no-daemon"
   },
   "license": "MIT",
   "devDependencies": {
@@ -40,6 +44,7 @@
     "dotenv": "^6.2.0",
     "elasticsearch": "^15.4.1",
     "express": "^4.16.4",
+    "pm2": "^3.5.0",
     "serialize-error": "^3.0.0",
     "winston": "^3.2.1"
   }

@@ -19,7 +19,7 @@ import {
 config()
 
 const spreeOptions = {
-  host: process.env.SPREE_HOST,
+  url: process.env.SPREE_URL,
   imagesHost: process.env.SPREE_IMAGES_HOST,
   path: process.env.SPREE_PATH
 }
@@ -30,7 +30,7 @@ const serverOptions = {
 
 const elasticSearchOptions = {
   bulkSize: +process.env.ES_BULK_SIZE,
-  host: process.env.ES_HOST,
+  url: process.env.ES_URL,
   index: process.env.ES_INDEX,
   logLevel: process.env.ES_LOG_LEVEL,
   requestTimeout: process.env.ES_REQUEST_TIMEOUT
@@ -43,7 +43,7 @@ const paginationOptions = {
 
 const getElasticClient = () => (
   elasticsearch.Client({
-    host: elasticSearchOptions.host,
+    host: elasticSearchOptions.url,
     log: elasticSearchOptions.logLevel
   })
 )
@@ -142,7 +142,7 @@ const getElasticBulkOperations = () => {
 
 const getSpreeClient = (): Client => (
   makeClient({
-    host: spreeOptions.host
+    host: spreeOptions.url
   })
 )
 

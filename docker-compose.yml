@@ -1,0 +1,20 @@
+version: '3.5'
+services:
+  spree2vs:
+    image: spark-solutions/spree2vs
+    build: .
+    container_name: spark-solutions_spree2vs
+    env_file: ".env.docker"
+    command: tail -f /dev/null
+    volumes:
+      - ".:/app"
+    env_file:
+      - .env.docker
+    ports:
+      # 8889 port is same as in .env.docker
+      - "8889:8889"
+    networks:
+      - net
+networks:
+  net:
+    name: spree_vue_storefront_shared_development_network

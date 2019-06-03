@@ -227,6 +227,7 @@ export default (spreeClient: Client, serverOptions: any) => {
           })
         } else {
           logger.error(['Could not create a new cart.', spreeResponse.fail()])
+          response.statusCode = 500
           response.json({
             code: 500,
             result: null
