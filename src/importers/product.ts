@@ -86,6 +86,19 @@ const importProducts = (
 
               const variantPrice = parseFloat(spreeVariant.attributes.price)
 
+              const variantMediaGallery = getMediaGallery(variantImages as SpreeProductImage[])
+                .reduce((accumulatedImages, { image }, variantIndex) => {
+                  if (variantIndex === 0) {
+                    return accumulatedImages
+                  }
+                  return {
+                    ...accumulatedImages,
+                    [`image${variantIndex}`]: image
+                  }
+                },
+                {}
+              )
+
               return {
                 final_price: variantPrice,
                 image: getImageUrl(variantImages[0] as SpreeProductImage, 800, 800) || '',
@@ -98,7 +111,8 @@ const importProducts = (
                     spreeVariant.attributes.purchasable &&
                     (spreeVariant.attributes.in_stock || spreeVariant.attributes.backorderable)
                 },
-                ...variantOptions
+                ...variantOptions,
+                ...variantMediaGallery
               }
             })
 
