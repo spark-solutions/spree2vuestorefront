@@ -49,15 +49,32 @@ const getElasticClient = () => (
 )
 
 const createIndices = () => {
+  logger.info('Creating indeces.')
   getElasticClient().indices.create({
     index: elasticSearchOptions.index
   })
+    .then(() => {
+      logger.info('Close index.')
+      getElasticClient().indices.close({
+        index: elasticSearchOptions.index
+      })
+    })
+    .then(() => {
+      logger.info('Setting search settings.')
+      return setSettings()
+    })
+    .then(() => {
+      logger.info('Open index.')
+      getElasticClient().indices.open({
+        index: elasticSearchOptions.index
+      })
+    })
     .then(() => {
       logger.info('Indices created. Mapping fields.')
       return setMapping()
     })
     .catch((error) => {
-      logger.error(['Error: Cannot create indices or set mapping.', error])
+      logger.error(['Error: Cannot create indices or set proper setting and mapping.', error])
     })
 }
 
@@ -73,6 +90,11 @@ const setMapping = () => {
       },
       color: {
         type: 'keyword'
+      },
+      name: {
+        type: 'text',
+        index: 'analyzed',
+        analyzer: 'ngram_analyzer'
       }
     }
   }
@@ -100,6 +122,40 @@ const setMapping = () => {
     })
     .then(() => {
       logger.info('Category mapping set.')
+    })
+}
+
+const setSettings = () => {
+  const searchSettings = {
+    analysis: {
+      analyzer: {
+        ngram_analyzer: {
+          tokenizer: 'ngram_tokenizer',
+          filter: 'lowercase'
+        }
+      },
+      tokenizer: {
+        ngram_tokenizer: {
+          type: 'ngram',
+          min_gram: 2,
+          max_gram: 8,
+          token_chars: [
+            'letter', 'digit'
+          ]
+        }
+      }
+    }
+  }
+
+  return getElasticClient().indices.putSettings({
+    body: searchSettings,
+    index: elasticSearchOptions.index
+  })
+    .then(() => {
+      logger.info('Search settings set.')
+    })
+    .catch((error) => {
+      logger.error(['Error: Cannot set search settings.', error])
     })
 }
 
@@ -152,23 +208,23 @@ const preconfigMapPages = (
 ): Promise<any> =>
   mapPages(makePaginationRequest, resourceCallback, paginationOptions.perPage, paginationOptions.maxPages)
 
-program.command('create-indices')
-  .action(() => {
-    createIndices()
-  })
-
 program.command('remove-everything')
   .action(() => {
-    logger.info('Removing index')
+    logger.info('Removing index.')
     getElasticClient().indices.delete({
       index: elasticSearchOptions.index
     })
       .then(() => {
-        logger.info('Index removed')
+        logger.info('Index removed.')
       })
       .catch((error) => {
-        logger.error(['Error: Cannot create indices!', error])
+        logger.error(['Error: Cannot remove index!', error])
       })
+  })
+
+program.command('create-indices')
+  .action(() => {
+    createIndices()
   })
 
 program.command('products')
