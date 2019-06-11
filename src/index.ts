@@ -49,57 +49,67 @@ const getElasticClient = () => (
 )
 
 const createIndices = () => {
+  const settings = {
+    analysis: {
+      analyzer: {
+        ngram_analyzer: {
+          tokenizer: 'ngram_tokenizer',
+          filter: 'lowercase'
+        }
+      },
+      tokenizer: {
+        ngram_tokenizer: {
+          type: 'ngram',
+          min_gram: 2,
+          max_gram: 8,
+          token_chars: [
+            'letter', 'digit'
+          ]
+        }
+      }
+    }
+  }
+  const mappings = {
+    product: {
+      properties: {
+        sku: {
+          type: 'keyword'
+        },
+        size: {
+          type: 'keyword'
+        },
+        color: {
+          type: 'keyword'
+        },
+        name: {
+          type: 'text',
+          index: 'analyzed',
+          analyzer: 'ngram_analyzer'
+        }
+      }
+    },
+    category: {
+      properties: {
+        url_key: {
+          type: 'keyword'
+        }
+      }
+    }
+  }
+
+  logger.info('Creating index.')
   getElasticClient().indices.create({
-    index: elasticSearchOptions.index
+    index: elasticSearchOptions.index,
+    body: {
+      settings,
+      mappings
+    }
   })
     .then(() => {
-      logger.info('Indices created. Mapping fields.')
-      return setMapping()
+      logger.info('Index created.')
     })
     .catch((error) => {
-      logger.error(['Error: Cannot create indices or set mapping.', error])
-    })
-}
-
-const setMapping = () => {
-  const indexName = elasticSearchOptions.index
-  const productMapping = {
-    properties: {
-      sku: {
-        type: 'keyword'
-      },
-      size: {
-        type: 'keyword'
-      },
-      color: {
-        type: 'keyword'
-      }
-    }
-  }
-  const categoryMapping = {
-    properties: {
-      url_key: {
-        type: 'keyword'
-      }
-    }
-  }
-  const elasticClient = getElasticClient()
-
-  return elasticClient.indices.putMapping({
-    body: productMapping,
-    index: indexName,
-    type: 'product'
-  })
-    .then(() => {
-      logger.info('Product mapping set. Setting category mapping.')
-      return elasticClient.indices.putMapping({
-        body: categoryMapping,
-        index: indexName,
-        type: 'category'
-      })
-    })
-    .then(() => {
-      logger.info('Category mapping set.')
+      logger.error(['Error: Cannot create indices or set proper setting and mapping.', error])
     })
 }
 
@@ -152,23 +162,23 @@ const preconfigMapPages = (
 ): Promise<any> =>
   mapPages(makePaginationRequest, resourceCallback, paginationOptions.perPage, paginationOptions.maxPages)
 
-program.command('create-indices')
-  .action(() => {
-    createIndices()
-  })
-
 program.command('remove-everything')
   .action(() => {
-    logger.info('Removing index')
+    logger.info('Removing index.')
     getElasticClient().indices.delete({
       index: elasticSearchOptions.index
     })
       .then(() => {
-        logger.info('Index removed')
+        logger.info('Index removed.')
       })
       .catch((error) => {
-        logger.error(['Error: Cannot create indices!', error])
+        logger.error(['Error: Cannot remove index!', error])
       })
+  })
+
+program.command('create-indices')
+  .action(() => {
+    createIndices()
   })
 
 program.command('products')
