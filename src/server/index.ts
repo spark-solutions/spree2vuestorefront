@@ -1,12 +1,14 @@
 import { errors, Result } from '@spree/storefront-api-v2-sdk'
-import { SpreeSDKError } from '@spree/storefront-api-v2-sdk/types/errors'
 import Client from '@spree/storefront-api-v2-sdk/types/Client'
+import { SpreeSDKError } from '@spree/storefront-api-v2-sdk/types/errors'
 import { NestedAttributes } from '@spree/storefront-api-v2-sdk/types/interfaces/endpoints/CheckoutClass'
+import { IEstimatedShippingMethodsResult } from '@spree/storefront-api-v2-sdk/types/interfaces/EstimatedShippingMethod'
 import { JsonApiResponse } from '@spree/storefront-api-v2-sdk/types/interfaces/JsonApi'
 import { IOrder, IOrderResult } from '@spree/storefront-api-v2-sdk/types/interfaces/Order'
 import { RelationType } from '@spree/storefront-api-v2-sdk/types/interfaces/Relationships'
 import { Result as ResultType } from '@spree/storefront-api-v2-sdk/types/interfaces/Result'
 import { ResultResponse } from '@spree/storefront-api-v2-sdk/types/interfaces/ResultResponse'
+import { IShippingMethodsResult } from '@spree/storefront-api-v2-sdk/types/interfaces/ShippingMethod'
 import { IToken } from '@spree/storefront-api-v2-sdk/types/interfaces/Token'
 import cors from 'cors'
 import * as express from 'express'
@@ -77,6 +79,19 @@ export default (spreeClient: Client, serverOptions: any) => {
           return spreeResponse
         }
       })
+  }
+
+  const generateStorefrontShippingMethods = (shippingRates: any) => {
+    const shippingMethods = shippingRates.map((shippingRate) => {
+      return {
+        carrier_code: shippingRate.attributes.shipping_method_id.toString(),
+        amount: +shippingRate.attributes.final_price,
+        method_code: shippingRate.attributes.shipping_method_id.toString(),
+        method_title: shippingRate.attributes.name
+      }
+    })
+
+    return shippingMethods
   }
 
   /**
@@ -186,7 +201,7 @@ export default (spreeClient: Client, serverOptions: any) => {
                   shippingResponse.success(), element.type, element.id
                 ).attributes.shipping_method_id.toString()
             })
-            if (typeof shippingRate !== undefined) {
+            if (typeof shippingRate !== 'undefined') {
               const shippingOrderInformation = {
                 order: {
                   shipments_attributes: [
@@ -450,30 +465,37 @@ export default (spreeClient: Client, serverOptions: any) => {
 
   app.post('/api/cart/shipping-methods', (request, response) => {
     logger.info('Fetching shipping methods.')
-    const countryId = request.query.country_id
-    spreeClient.cart.estimateShippingMethods(getTokenOptions(request), { country_iso: countryId })
-      .then((spreeResponse) => {
-        if (spreeResponse.isSuccess()) {
-          const shippingRates = spreeResponse.success().data
-          const shippingMethods = shippingRates.map((shippingRate) => {
-            return {
-              carrier_code: shippingRate.attributes.shipping_method_id.toString(),
-              amount: +shippingRate.attributes.final_price,
-              method_code: shippingRate.attributes.shipping_method_id.toString(),
-              method_title: shippingRate.attributes.name
-            }
-          })
+    const orderToken = getTokenOptions(request)
+    spreeClient.checkout.shippingMethods(orderToken)
+      .then((shippingMethodsResponse: IShippingMethodsResult) => {
+        if (shippingMethodsResponse.isSuccess() && shippingMethodsResponse.success().included.length > 0) {
+          logger.info('Shipping methods fetched.')
+          const shippingMethods = generateStorefrontShippingMethods(shippingMethodsResponse.success().included)
 
           response.json({
             code: 200,
             result: shippingMethods
           })
         } else {
-          logger.error([`Could not get estimated shipping methods.`, spreeResponse.fail()])
-          response.json({
-            code: 500,
-            result: null
-          })
+          logger.info('Shipping methods not available, fetching estimated shipping methods.')
+          const countryId = request.query.country_id
+          spreeClient.cart.estimateShippingMethods(orderToken, { country_iso: countryId })
+            .then((eShippingMethodsResponse: IEstimatedShippingMethodsResult) => {
+              if (eShippingMethodsResponse.isSuccess()) {
+                const eShippingMethods = generateStorefrontShippingMethods(eShippingMethodsResponse.success().data)
+
+                response.json({
+                  code: 200,
+                  result: eShippingMethods
+                })
+              } else {
+                logger.error([`Could not get exact nor estimated shipping methods.`, eShippingMethodsResponse.fail()])
+                response.json({
+                  code: 500,
+                  result: null
+                })
+              }
+            })
         }
       })
   })
