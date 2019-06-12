@@ -184,6 +184,7 @@ const importProducts = (
               name: defaultVariant.attributes.name,
               news_from_date: null, // start date for when product is "in the news" (featured)
               news_to_date: null, // end date for when product is "in the news" (featured)
+              price,
               priceInclTax: price,
               regular_price: price,
               sku: defaultVariant.attributes.sku,
