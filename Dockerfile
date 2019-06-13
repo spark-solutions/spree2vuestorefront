@@ -2,12 +2,12 @@ FROM node:10.15
 
 WORKDIR /app
 
-COPY package.json yarn.lock /app/
-
+COPY . /app/
 RUN yarn install
 RUN yarn build
 
-COPY . /app/
+RUN chmod u+x dist/index.js
+
 # TODO: find an EASY way to use a non-root USER:
 # RUN useradd -m noroot
 # USER noroot
