@@ -5,6 +5,7 @@ WORKDIR /app
 COPY package.json yarn.lock /app/
 
 RUN yarn install
+RUN yarn build
 
 COPY . /app/
 # TODO: find an EASY way to use a non-root USER:
