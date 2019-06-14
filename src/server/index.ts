@@ -57,8 +57,10 @@ export default (spreeClient: Client, serverOptions: any) => {
             totalSegments.push({ code: 'discount', title: 'Discount', value: resultAttr.promo_total })
           }
 
-          if (parseInt(resultAttr.tax_total, 10) !== 0) {
+          if (parseInt(resultAttr.tax_total, 10) !== 0 && parseInt(resultAttr.included_tax_total, 10) === 0) {
             totalSegments.push({ code: 'tax', title: 'Tax', value: resultAttr.tax_total })
+          } else if (parseInt(resultAttr.included_tax_total, 10) !== 0) {
+            totalSegments.push({ code: 'tax', title: 'Included Tax', value: resultAttr.included_tax_total })
           }
 
           const result = {
