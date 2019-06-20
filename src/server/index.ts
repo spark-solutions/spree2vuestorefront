@@ -104,35 +104,53 @@ export default (spreeClient: Client, serverOptions: any) => {
     const {
       billingAddress,
       shippingAddress,
-      payment_method_code: paymentMethod,
+      payment_method_code: paymentMethodCode,
       payment_method_additional: paymentMethodAdditional
     } = order.addressInformation
     let orderInformation: NestedAttributes = {}
 
-    if (paymentMethod) {
+    if (paymentMethodCode) {
+      // TODO: Create a generic mechanism for extending payments.
+
       orderInformation = {
         ...orderInformation,
         order: {
-          payments_attributes: [{
-            payment_method_id: paymentMethod
-          }]
+          payments_attributes: [
+            {
+              payment_method_id: paymentMethodCode
+            }
+          ]
         }
       }
 
-      if (paymentMethodAdditional.id) {
-        orderInformation = {
-          ...orderInformation,
-          payment_source: {
-            [paymentMethod]: {
-              gateway_payment_profile_id: paymentMethodAdditional.id,
-              name: `${billingAddress.firstname} ${billingAddress.lastname}`,
-              cc_type: paymentMethodAdditional.card.brand,
-              last_digits: parseInt(paymentMethodAdditional.card.last4, 10),
-              month: parseInt(paymentMethodAdditional.card.exp_month, 10),
-              year: parseInt(paymentMethodAdditional.card.exp_year, 10)
+      switch (paymentMethodAdditional.storefront_payment_method_type) {
+        case 'spree/spree_gateway':
+          // Recognize use of Spree Gateway (https://github.com/spree/spree_gateway).
+          orderInformation = {
+            ...orderInformation,
+            payment_source: {
+              [paymentMethodCode]: {
+                name: `${billingAddress.firstname} ${billingAddress.lastname}`,
+                ...paymentMethodAdditional,
+              }
             }
           }
-        }
+          break
+        case 'spree-contrib/spree_braintree_vzero':
+          // Recognize use of Braintree v.zero (https://github.com/spree-contrib/spree_braintree_vzero).
+          orderInformation = {
+            ...orderInformation,
+            order: {
+              ...orderInformation.order,
+              payments_attributes: [
+                {
+                  ...orderInformation.order.payments_attributes[0],
+                  ...paymentMethodAdditional
+                }
+              ]
+            }
+          } as NestedAttributes
+          break
       }
     }
 
