@@ -72,3 +72,8 @@ export enum ESProductType {
   Simple = 'simple',
   Configurable = 'configurable'
 }
+
+export interface ShippingMethodsDescription {
+  orderToken: string,
+  deferred: Promise<any>
+}
