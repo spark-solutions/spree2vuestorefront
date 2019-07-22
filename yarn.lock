@@ -737,15 +737,14 @@
     eventemitter2 "^4.1.0"
     ws "^3.0.0"
 
-"@spree/storefront-api-v2-sdk@^3.1.1":
-  version "3.1.1"
-  resolved "https://registry.yarnpkg.com/@spree/storefront-api-v2-sdk/-/storefront-api-v2-sdk-3.1.1.tgz#59fca9111625e85d18f4b5a309e19ce46d2a82bb"
-  integrity sha512-o57gvZXfVrieTDQrqJzaQ/4jc1EBQ7AYjTedyBx94NoSGGMiC/viDRsLpqBcUgYgQQSvKIiQlz0hIylwM8Lf8Q==
+"@spree/storefront-api-v2-sdk@^4.0.2":
+  version "4.0.2"
+  resolved "https://registry.yarnpkg.com/@spree/storefront-api-v2-sdk/-/storefront-api-v2-sdk-4.0.2.tgz#8a52767039cdd72f7db87af617f10888a98d91c0"
+  integrity sha512-7yurxWEp5g8vbwiOpP896iUU7JJ8YAYqCbwzDv9p2Nwfg8AeonAHEXaCu2N78er3G7HOEFI/pqVoOMoU2RBIGw==
   dependencies:
     axios "^0.19.0"
     lodash "^4.17.11"
     qs "^6.6.0"
-    reflect-metadata "^0.1.13"
 
 "@types/body-parser@*":
   version "1.17.0"
@@ -4558,11 +4557,6 @@ rechoir@^0.6.2:
   integrity sha1-hSBLVNuoLVdC4oyWdW70OvUOM4Q=
   dependencies:
     resolve "^1.1.6"
-
-reflect-metadata@^0.1.13:
-  version "0.1.13"
-  resolved "https://registry.yarnpkg.com/reflect-metadata/-/reflect-metadata-0.1.13.tgz#67ae3ca57c972a2aa1642b10fe363fe32d49dc08"
-  integrity sha512-Ts1Y/anZELhSsjMcU605fU9RE4Oi3p5ORujwbIKXfWa+0Zxs510Qrmrce5/Jowq3cHSZSJqBjypxmHarc+vEWg==
 
 regenerate-unicode-properties@^7.0.0:
   version "7.0.0"
