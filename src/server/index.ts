@@ -2,17 +2,17 @@ import { errors, Result } from '@spree/storefront-api-v2-sdk'
 import Client from '@spree/storefront-api-v2-sdk/types/Client'
 import { SpreeSDKError } from '@spree/storefront-api-v2-sdk/types/errors'
 import { NestedAttributes } from '@spree/storefront-api-v2-sdk/types/interfaces/endpoints/CheckoutClass'
-import { IEstimatedShippingMethodsResult } from '@spree/storefront-api-v2-sdk/types/interfaces/EstimatedShippingMethod'
+import { IEstimatedShippingMethodsResult, EstimatedShippingMethodAttr } from '@spree/storefront-api-v2-sdk/types/interfaces/EstimatedShippingMethod'
 import { JsonApiResponse } from '@spree/storefront-api-v2-sdk/types/interfaces/JsonApi'
 import { IOrder, IOrderResult } from '@spree/storefront-api-v2-sdk/types/interfaces/Order'
 import { RelationType } from '@spree/storefront-api-v2-sdk/types/interfaces/Relationships'
 import { Result as ResultType } from '@spree/storefront-api-v2-sdk/types/interfaces/Result'
 import { ResultResponse } from '@spree/storefront-api-v2-sdk/types/interfaces/ResultResponse'
-import { IShippingMethodsResult } from '@spree/storefront-api-v2-sdk/types/interfaces/ShippingMethod'
+import { IShippingMethodsResult, ShippingMethodAttr } from '@spree/storefront-api-v2-sdk/types/interfaces/ShippingMethod'
 import { IToken } from '@spree/storefront-api-v2-sdk/types/interfaces/Token'
 import cors from 'cors'
 import * as express from 'express'
-import { JsonApiSingleResponse } from '../interfaces'
+import { JsonApiSingleResponse, ShippingMethodsDescription } from '../interfaces'
 import {
   findIncluded,
   findIncludedOfType,
@@ -55,18 +55,18 @@ export default (spreeClient: Client, serverOptions: any) => {
             code: 'grand_total', title: 'Grand Total', value: resultAttr.total
           }]
 
-          if (parseInt(resultAttr.promo_total, 10) !== 0) {
+          if (parseFloat(resultAttr.promo_total) !== 0) {
             totalSegments.push({ code: 'discount', title: 'Discount', value: resultAttr.promo_total })
           }
 
-          if (parseInt(resultAttr.tax_total, 10) !== 0 && parseInt(resultAttr.included_tax_total, 10) === 0) {
+          if (parseFloat(resultAttr.tax_total) !== 0 && parseFloat(resultAttr.included_tax_total) === 0) {
             totalSegments.push({ code: 'tax', title: 'Tax', value: resultAttr.tax_total })
-          } else if (parseInt(resultAttr.included_tax_total, 10) !== 0) {
+          } else if (parseFloat(resultAttr.included_tax_total) !== 0) {
             totalSegments.push({ code: 'tax', title: 'Included Tax', value: resultAttr.included_tax_total })
           }
 
           const result = {
-            coupon_code: parseInt(resultAttr.promo_total, 10) !== 0 ? '42' : '',
+            coupon_code: parseFloat(resultAttr.promo_total) !== 0 ? '42' : '',
             discount_amount: resultAttr.promo_total,
             grand_total: resultAttr.total,
             items_qty: resultAttr.items_qty,
@@ -83,7 +83,11 @@ export default (spreeClient: Client, serverOptions: any) => {
       })
   }
 
-  const generateStorefrontShippingMethods = (shippingRates: any) => {
+  const generateStorefrontShippingMethods = (
+    shippingRates: any[]
+  ) => {
+    // TODO: Rename Spree SDK's EstimatedShippingMethodAttr to ShippingMethod. It's used in shipping rates and estimated
+    // shipping rates endpoints.
     const shippingMethods = shippingRates.map((shippingRate) => {
       return {
         carrier_code: shippingRate.attributes.shipping_method_id.toString(),
@@ -198,21 +202,68 @@ export default (spreeClient: Client, serverOptions: any) => {
   }
 
   const spreeErrorToString = (error: SpreeSDKError): string => {
-    // FIXME: provide nicer names for fields and nicer string format
+    // TODO: Provide nicer names for fields and nicer string format
     if (error instanceof errors.BasicSpreeError) {
       return error.summary
     }
     return error.message
   }
 
-  const updateShippingMethod = (orderToken: IToken, shippingRateId: string) => {
-    return spreeClient.checkout.shippingMethods(orderToken, { include: 'shipping_rates' })
+  // TODO: Consider clearing resolved promises in lastShippingMethods.
+  const lastShippingMethods: ShippingMethodsDescription[] = []
+
+  /**
+   * Limits the number of calls to spreeClient.checkout.shippingMethods to mitigate duplicated shipments. Spree doesn't
+   * clear old shipments when shipping_rates endpoint is called rapidly for same order.
+   */
+  const adjustLastShippingMethodsCallForOrder = (
+    token: IToken,
+    shippingMethodsCallGenerator: () => Promise<IShippingMethodsResult>
+  ): Promise<any> => {
+    const lastDescription = lastShippingMethods.find((shippingMethodDescription) => {
+      const { orderToken } = shippingMethodDescription
+      return orderToken === token.orderToken
+    })
+
+    if (lastDescription) {
+      logger.info(
+        `Order with order token id = ${token.orderToken} already has shipping methods calls waiting.`
+      )
+      const updatedShippingMethodsDeferred = lastDescription.deferred
+        .then(shippingMethodsCallGenerator)
+        .catch(shippingMethodsCallGenerator)
+      lastDescription.deferred = updatedShippingMethodsDeferred
+      return updatedShippingMethodsDeferred
+    }
+
+    logger.info(`Order with order token id = ${token.orderToken} has no shipping methods calls waiting.`)
+
+    const shippingMethodsDeferred = shippingMethodsCallGenerator()
+
+    const newShippingMethodsCallDescription = {
+      orderToken: token.orderToken,
+      deferred: shippingMethodsDeferred
+    }
+
+    lastShippingMethods.push(newShippingMethodsCallDescription)
+
+    return shippingMethodsDeferred
+  }
+
+  const updateShippingMethod = (token: IToken, shippingRateId: string) => {
+    return adjustLastShippingMethodsCallForOrder(
+      token,
+      () => {
+        return spreeClient.checkout.shippingMethods(token, { include: 'shipping_rates' })
+      }
+    )
       .then((shippingResponse): MaybePromiseResult => {
         if (shippingResponse.isSuccess()) {
-          logger.info('Shipping rates fetched.')
+          logger.info(`Shipping rates fetched for order with order token = ${token.orderToken}.`)
           const shipments = shippingResponse.success().data
           if (shipments.length > 0) {
             logger.info('At least one shipment choice available for order.')
+            logger.info(`Searching for shipment with shipping method id = ${shippingRateId}.`)
             const pickedShipment = shipments[0]
             const shippingRates = pickedShipment.relationships.shipping_rates.data as RelationType[]
             const shippingRate = shippingRates.find((element) => {
@@ -222,22 +273,26 @@ export default (spreeClient: Client, serverOptions: any) => {
                 ).attributes.shipping_method_id.toString()
             })
             if (typeof shippingRate !== 'undefined') {
+              logger.info(`Found match for chosen shipping method with id = ${shippingRateId} in Spree.`)
               const shippingOrderInformation = {
                 order: {
                   shipments_attributes: [
                     {
-                      id: parseInt(pickedShipment.id, 0),
-                      selected_shipping_rate_id: parseInt(shippingRate.id, 0)
+                      id: parseInt(pickedShipment.id, 10),
+                      selected_shipping_rate_id: parseInt(shippingRate.id, 10)
                     }
                   ]
                 }
               }
-              return spreeClient.checkout.orderUpdate(orderToken, shippingOrderInformation)
+              logger.info('Updating shipping method for order in Spree.')
+              return spreeClient.checkout.orderUpdate(token, shippingOrderInformation)
+            } else {
+              logger.info(`Shipping method with id = ${shippingRateId} not found for order token ${token.orderToken}.`)
             }
           } else {
             logger.info('No shipment choices available for order.')
           }
-          return Result.fail(new ShippingMethodMissingError('Estimated shipping method is not avaliable.'))
+          return Result.fail(new ShippingMethodMissingError('Estimated shipping method is not available.'))
         } else {
           logger.error(['Shipping rates could not be fetched.', shippingResponse.fail()])
           return shippingResponse
@@ -486,30 +541,44 @@ export default (spreeClient: Client, serverOptions: any) => {
   app.post('/api/cart/shipping-methods', (request, response) => {
     logger.info('Fetching shipping methods.')
     const orderToken = getTokenOptions(request)
-    spreeClient.checkout.shippingMethods(orderToken)
-      .then((shippingMethodsResponse: IShippingMethodsResult) => {
-        if (shippingMethodsResponse.isSuccess() && shippingMethodsResponse.success().included.length > 0) {
-          logger.info('Shipping methods fetched.')
-          const shippingMethods = generateStorefrontShippingMethods(shippingMethodsResponse.success().included)
+    adjustLastShippingMethodsCallForOrder(
+      orderToken,
+      () => {
+        return spreeClient.checkout.shippingMethods(orderToken)
+      }
+    )
+      .then((shippingMethodsResult: IShippingMethodsResult) => {
+        let handled = false
+        if (shippingMethodsResult.isSuccess()) {
+          const shippingMethodsResponse = shippingMethodsResult.success()
+          if (shippingMethodsResponse.data.length > 0) {
+            // TODO: Support multiple shipments.
+            const shipmentShippingMethods = findIncludedOfType(
+              shippingMethodsResponse, shippingMethodsResponse.data[0], 'shipping_rates'
+            )
+            const shippingMethods = generateStorefrontShippingMethods(shipmentShippingMethods)
+            response.json({
+              code: 200,
+              result: shippingMethods
+            })
+            handled = true
+          }
+        }
 
-          response.json({
-            code: 200,
-            result: shippingMethods
-          })
-        } else {
+        if (!handled) {
           logger.info('Shipping methods not available, fetching estimated shipping methods.')
           const countryId = request.query.country_id
           spreeClient.cart.estimateShippingMethods(orderToken, { country_iso: countryId })
-            .then((eShippingMethodsResponse: IEstimatedShippingMethodsResult) => {
-              if (eShippingMethodsResponse.isSuccess()) {
-                const eShippingMethods = generateStorefrontShippingMethods(eShippingMethodsResponse.success().data)
+            .then((eShippingMethodsResult: IEstimatedShippingMethodsResult) => {
+              if (eShippingMethodsResult.isSuccess()) {
+                const eShippingMethods = generateStorefrontShippingMethods(eShippingMethodsResult.success().data)
 
                 response.json({
                   code: 200,
                   result: eShippingMethods
                 })
               } else {
-                logger.error([`Could not get exact nor estimated shipping methods.`, eShippingMethodsResponse.fail()])
+                logger.error([`Could not get exact nor estimated shipping methods.`, eShippingMethodsResult.fail()])
                 response.json({
                   code: 500,
                   result: null
@@ -532,7 +601,7 @@ export default (spreeClient: Client, serverOptions: any) => {
         // If a shipping method doesn't exist, still provide totals, but don't update shipping method in checkout. This
         // is to prevent errors before user fills shipping address (VS calls shipping-information earlier as well).
         if (shippingResponse.isSuccess() || (shippingResponse.fail() instanceof ShippingMethodMissingError)) {
-          logger.info('Order shipping method updated or update skipped due to empty shipping address. Fetching totals.')
+          logger.info('Order shipping method updated or update skipped due to issues. Fetching totals.')
           return getTotals(orderToken, cartId)
         }
         return shippingResponse
