@@ -566,25 +566,19 @@ export default (spreeClient: Client, serverOptions: any) => {
         }
 
         if (!handled) {
-          logger.info('Shipping methods not available, fetching estimated shipping methods.')
-          const countryId = request.query.country_id
-          spreeClient.cart.estimateShippingMethods(orderToken, { country_iso: countryId })
-            .then((eShippingMethodsResult: IEstimatedShippingMethodsResult) => {
-              if (eShippingMethodsResult.isSuccess()) {
-                const eShippingMethods = generateStorefrontShippingMethods(eShippingMethodsResult.success().data)
-
-                response.json({
-                  code: 200,
-                  result: eShippingMethods
-                })
-              } else {
-                logger.error([`Could not get exact nor estimated shipping methods.`, eShippingMethodsResult.fail()])
-                response.json({
-                  code: 500,
-                  result: null
-                })
-              }
-            })
+          logger.info('Shipments not available yet. Serving dummy shipping methods.')
+          const dummyShippingMethods = [
+            {
+              amount: 0,
+              carrier_code: '-42',
+              method_code: '-42',
+              method_title: 'Dummy to prevent front-end error'
+            }
+          ]
+          response.json({
+            code: 200,
+            result: dummyShippingMethods
+          })
         }
       })
   })
