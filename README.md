@@ -16,9 +16,9 @@ Intermediary layer for importing Spree catalogue and interacting with Spree. Pla
 1. Run the following commands:
   1. `./docker-bin/spree2vs.sh yarn install` installs npm modules.
   1. `./docker-bin/spree2vs.sh yarn watch` starts a Webpack server which continuously rebuilds the project from source files.
-  1. `./docker-bin/spree2vs.sh ./dist/index.js remove-everything` clears catalog in Elastic Search.
-  1. `./docker-bin/spree2vs.sh ./dist/index.js create-indices` adds type mappings to ES columns.
-  1. `./docker-bin/spree2vs.sh yarn import:all` imports products, attributes and categories from Spree to the ES catalog. In production mode, this script runs as a cron job in intervals.
+  1. `./docker-bin/spree2vs.sh ./dist/index.js remove-everything` (or `./docker-bin/spree2vs.sh node ./dist/index.js  remove-everything` in case of "permission denied" error) clears catalog in Elastic Search.
+  1. `./docker-bin/spree2vs.sh ./dist/index.js create-indices` (or `./docker-bin/spree2vs.sh node ./dist/index.js create-indices` in case of "permission denied" error) adds type mappings to ES columns.
+  1. `./docker-bin/spree2vs.sh yarn import:all` (or `./docker-bin/spree2vs.sh node ./dist/index.js products` then `./docker-bin/spree2vs.sh node ./dist/index.js categories` in case of "permission denied" error) imports products, attributes and categories from Spree to the ES catalog. In production mode, this script runs as a cron job in intervals.
   1. `./docker-bin/spree2vs.sh yarn server` starts a Node server which allows cart, order and account management in Spree when using Vue Storefront.
 1. Make changes in files.
 1. Run `./docker-bin/stop.sh`.
