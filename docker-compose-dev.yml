@@ -1,0 +1,18 @@
+version: '3.5'
+services:
+  spree2vs:
+    image: node:10.16
+    env_file: .env.docker
+    command: tail -f /dev/null
+    working_dir: /app
+    volumes:
+      - ".:/app:delegated"
+      - node_modules:/app/node_modules
+      - yarn-cache:/root/.yarn-cache
+    ports:
+      # 8889 port is same as in .env.docker
+      - "8889:8889"
+
+volumes:
+  yarn-cache:
+  node_modules:

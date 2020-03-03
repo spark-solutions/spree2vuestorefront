@@ -1,0 +1,10 @@
+version: '3.5'
+services:
+  spree2vs:
+    image: spark-solutions/spree2vs:1.0.0-prod
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      # 8889 port is same as in .env.docker
+      - "8889:8889"

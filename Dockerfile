@@ -5,6 +5,7 @@ WORKDIR /app
 COPY . /app/
 RUN yarn install
 RUN yarn build
+RUN yarn cache clean
 
 RUN chmod u+x dist/index.js
 
