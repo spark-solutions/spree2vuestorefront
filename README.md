@@ -1,14 +1,32 @@
-# Spree 2 Vue Storefront [spree2vs]
+# Spree 2 Vue Storefront
 
 ![spree2vs hero image](./readme-assets/spree2vs-header.png)
+
+## Introduction
+
+This README provides guidance how to build your own E-Commerce PWA apps using [Spree Commerce](https://github.com/spree/spree) and [Vue Storefront](https://github.com/DivanteLtd/vue-storefront).
+
+Progressive Web Apps (PWA), [according to Google](https://web.dev/what-are-pwas/), let you build mobile-friendly user shopping experiences available to everyone through a web browser but enabling native app-ike silky smooth functionality. So the best of two worlds – web apps reach (100% of web users) and native mobile app-like UX.
+
+Spree PWA is:
+* **Reliable** – loads instantly even with a poor network connection or offline (for returning customers)
+* **Fast** – responds quickly to user interactions with silky smooth animations and scrolling
+* **Engaging** – feels like a native app on a mobile device which users can place permanently on their home screen
+* **Cheaper** than a mobile app – because of the shared codebase between the website and the frontend app
+
+Learn more about [Spree PWA here](https://spreecommerce.org/use-cases/spree-pwa-progressive-web-application/) and check out our Spree-powered PWA fashion demo: https://dofearnot.com/
+
+## Demo
+
+Visit the [Fearnot Demo Site][1] to test the platform and check how installing a web app works in practice.
+
+![How to install PWA on iOS using Safari](https://github.com/spark-solutions/spree2vuestorefront/blob/master/readme-assets/pwa-installation-on-ios.png)
+
+## Spree 2 Vue Storefront [spree2vs] overview
 
 spree2vs bridges two open source initiatives into a complete e-commerce platform. It combines [Spree][3]'s inventory and order management capabilities with [Vue Storefront][4]'s modern approach to consumer online shopping experiences.
 
 An increasingly influential feature of the platform is support for Progressive Web App ([PWA][2]) technologies. They allow *installing* a store's website on consumer devices and interacting with it just like with native apps. In this form, the store is listed among other apps for easier access and can utilize extra resources unlocked for it by the device. For example, it may retain more data on the phone to provide a faster and smoother product browsing experience. PWAs are supported on all major mobile and desktop operating systems.
-
-![How to install PWA on iOS using Safari](./readme-assets/pwa-installation-on-ios.png)
-
-Visit the [Fearnot Demo Site][1] to test the platform and check how installing a web app works in practice.
 
 ## Architecture
 
