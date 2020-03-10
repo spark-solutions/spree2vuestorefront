@@ -1,10 +1,10 @@
 # Spree 2 Vue Storefront
 
-![spree2vs hero image](./readme-assets/spree2vs-header.png)
+![spree2vs hero image](./readme-assets/github-spree_vue_storefront_pwa.png)
 
 ## Introduction
 
-This README provides guidance how to build your own E-Commerce PWA apps using [Spree Commerce](https://github.com/spree/spree) and [Vue Storefront](https://github.com/DivanteLtd/vue-storefront).
+This README provides guidance on how to build your own E-Commerce PWA apps using [Spree Commerce](https://github.com/spree/spree) and [Vue Storefront](https://github.com/DivanteLtd/vue-storefront).
 
 Progressive Web Apps (PWA), [according to Google](https://web.dev/what-are-pwas/), let you build mobile-friendly user shopping experiences available to everyone through a web browser but enabling native app-ike silky smooth functionality. So the best of two worlds – web apps reach (100% of web users) and native mobile app-like UX.
 
