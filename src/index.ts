@@ -312,20 +312,6 @@ program.command('products')
       logger.info(`No date provided. Updating all products and setting cursor to ${cursor}.`)
     }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     const storesConfigurations = getStoresConfiguration()
 
     const importProducts = partial(
@@ -422,18 +408,6 @@ program.command('products')
           process.exit(1)
         })
     }
-
-
-
-
-
-
-
-
-
-
-
-
   })
 
 // program.command('categories')
