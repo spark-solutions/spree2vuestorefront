@@ -264,19 +264,48 @@ const preconfigMapPages = (
 
 
 
-// program.command('remove-everything')
-//   .action(() => {
-//     logger.info('Removing index.')
-//     getElasticClient().indices.delete({
-//       index: elasticSearchOptions.index
-//     })
-//       .then(() => {
-//         logger.info('Index removed.')
-//       })
-//       .catch((error) => {
-//         logger.error(['Error: Cannot remove index!', error])
-//       })
-//   })
+program.command('remove-everything')
+  .action(() => {
+    const storesConfigurations = getStoresConfiguration()
+    
+    if (storesConfigurations.length > 0) {
+      logger.info('Removing indices.')
+
+      storesConfigurations.reduce((accumulated, currentStoreConfiguration) => {
+        const storeIdentifier = currentStoreConfiguration.identifier
+
+        const storeElasticConfiguration = getFullElasticSearchConfigForStore(
+          storesConfigurations,
+          storeIdentifier
+        )
+        
+        return accumulated.then(() => {
+          const index = storeElasticConfiguration.index
+
+          return getElasticClient(storeElasticConfiguration).indices.delete({ index })
+            .then(() => {
+              logger.info(`Index ${index} removed.`)
+            })
+            .catch((error) => {
+              logger.error(['Error: Cannot remove index!', error])
+            })
+        })
+      }, Promise.resolve())
+    } else {
+      logger.info('Removing index.')
+
+      const singleElasticSearchConfiguration = getSingleElasticSearchConfiguration() 
+      const index = singleElasticSearchConfiguration.index
+
+      getElasticClient(singleElasticSearchConfiguration).indices.delete({ index })
+        .then(() => {
+          logger.info(`Index ${index} removed.`)
+        })
+        .catch((error) => {
+          logger.error(['Error: Cannot remove index!', error])
+        })
+      }
+  })
 
 // program.command('create-indices')
 //   .action(() => {
@@ -312,8 +341,6 @@ program.command('products')
       logger.info(`No date provided. Updating all products and setting cursor to ${cursor}.`)
     }
 
-    const storesConfigurations = getStoresConfiguration()
-
     const importProducts = partial(
       importers.product,
       getSpreeClient(),
@@ -325,6 +352,8 @@ program.command('products')
       _,
       _
     )
+
+    const storesConfigurations = getStoresConfiguration()
 
     if (storesConfigurations.length > 0) {
       logger.info('Importing products from multiple stores')
