@@ -77,3 +77,22 @@ export interface ShippingMethodsDescription {
   orderToken: string,
   deferred: Promise<any>
 }
+
+export interface ElasticSearchOptions {
+  bulkSize: number,
+  url: string,
+  index: string,
+  logLevel: string,
+  requestTimeout: number
+}
+
+export interface ElasticClient {
+  search: any,
+  indices: any
+}
+
+export interface StoreConfiguration {
+  identifier: string,
+  elasticIndex: string,
+  spreeCurrency: string
+}

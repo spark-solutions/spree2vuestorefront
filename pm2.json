@@ -10,7 +10,7 @@
     },
     {
       "name": "cron",
-      "script": "yarn run import:all",
+      "script": "yarn run import",
       "cron_restart": "${CRON_SCHEDULE}",
       "autorestart": false,
       "log_date_format": "YYYY-MM-DD HH:mm:ss",

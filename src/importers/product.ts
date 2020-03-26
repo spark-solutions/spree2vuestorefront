@@ -34,7 +34,10 @@ const importProducts = (
   elasticBulkOperations: any,
   preconfigMapPages: any,
   cursor: string,
-  updatedSinceDate: Date | null
+  updatedSinceDate: Date,
+  getVariantPrice: Function,
+  getMasterVariantPrice: Function,
+  getProductsListIncludes: Function
 ): Promise<void> => {
   let updates: number = 0
   let replacements: number = 0
@@ -42,10 +45,11 @@ const importProducts = (
   return getCategories(spreeClient, preconfigMapPages)
     .then((categories: JsonApiDocument[]) => {
       logger.info('Categories fetched. Importing products.')
+
       return preconfigMapPages(
         (page: number, perPage: number) => (
           spreeClient.products.list({
-            include: 'default_variant,images,option_types,product_properties,variants,variants.option_values,taxons',
+            include: getProductsListIncludes(),
             page,
             per_page: perPage
           })
@@ -84,8 +88,6 @@ const importProducts = (
                 return acc
               }, {})
 
-              const variantPrice = parseFloat(spreeVariant.attributes.price)
-
               const variantMediaGallery = getMediaGallery(variantImages as SpreeProductImage[])
                 .reduce((accumulatedImages, { image }, variantIndex) => {
                   if (variantIndex === 0) {
@@ -98,6 +100,8 @@ const importProducts = (
                 },
                 {}
               )
+
+              const variantPrice = getVariantPrice(spreeVariant, response)
 
               return {
                 final_price: variantPrice,
@@ -155,7 +159,7 @@ const importProducts = (
               filterObject[filterType.attribute_name] = filterOptionArray
             })
 
-            const price = parseFloat(defaultVariant.attributes.price)
+            const price = getMasterVariantPrice(defaultVariant, response)
             const productCategories = getCategoriesOnPath(categories, relationships.taxons.data.map(({ id }) => id))
 
             const esProduct = {
