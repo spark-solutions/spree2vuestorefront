@@ -6,7 +6,10 @@ import {
   JsonApiResponse,
   OptionValueDocument,
   PositionedDocument,
-  SpreeProductImage
+  SpreeProductImage,
+  GetProductsListIncludes,
+  GetVariantPrice,
+  GetMasterVariantPrice
 } from '../interfaces'
 import {
   FatalError,
@@ -35,9 +38,9 @@ const importProducts = (
   preconfigMapPages: any,
   cursor: string,
   updatedSinceDate: Date,
-  getVariantPrice: Function,
-  getMasterVariantPrice: Function,
-  getProductsListIncludes: Function
+  getVariantPrice: GetVariantPrice,
+  getMasterVariantPrice: GetMasterVariantPrice,
+  getProductsListIncludes: GetProductsListIncludes
 ): Promise<void> => {
   let updates: number = 0
   let replacements: number = 0

@@ -1,14 +1,16 @@
-import {
-  findIncluded,
-  findIncludedOfType
-} from '../../utils'
+import { findIncludedOfType } from '../../utils'
+import { JsonApiResponse, JsonApiDocument } from '../../interfaces'
 
-export const getPrice = (_currency: string, _variant, _response) => {
+export const getPrice = (currency, variant, response) => {
+  // const relationships = variant.relationships.prices
+  // const defaultVariantIdentifier = relationships.default_variant.data
+  const variantPrices = findIncludedOfType(response, variant, 'prices')
+  variantPrices.find((variantPrice) => variantPrice.attributes.currency === currency)
+  console.log('aaaaaa', variantPrices, currency)
   // return parseFloat(variant.attributes.price)
   // TODO: need to get includes here as getPrice function param
   return 1234
 
-  // const defaultVariant = findIncluded(response, defaultVariantIdentifier.type, defaultVariantIdentifier.id)
 }
 
 export const getVariantPrice = getPrice

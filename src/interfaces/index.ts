@@ -96,3 +96,15 @@ export interface StoreConfiguration {
   elasticIndex: string,
   spreeCurrency: string
 }
+
+export interface GetPrice {
+  (variant: JsonApiDocument, response: JsonApiResponse): number
+}
+
+export interface GetVariantPrice extends GetPrice { }
+
+export interface GetMasterVariantPrice extends GetPrice { }
+
+export interface GetProductsListIncludes {
+  (): string
+}
