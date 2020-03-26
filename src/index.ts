@@ -341,10 +341,7 @@ program.command('products')
     )
 
     if (storesConfigurations.length > 0) {
-      logger.info(`Found store configurations. Using them to create multiple Elastic Search indices.`)
-      console.log('storeConfiguration = ', JSON.stringify(storesConfigurations, null, 2))
-
-      // TODO: add more logger.info
+      logger.info('Importing products from multiple stores')
 
       const {
         getVariantPrice,
@@ -362,15 +359,18 @@ program.command('products')
   
       storesConfigurations.reduce((accumulated, currentStoreConfiguration) => {
         const storeIdentifier = currentStoreConfiguration.identifier
-  
-        console.log('storeIdentifier = ', storeIdentifier)
+
+        logger.info(`Importing store with identifier = ${storeIdentifier}. Full store configuration is ${JSON.stringify(currentStoreConfiguration)}.`)
   
         const storeElasticConfiguration = getFullElasticSearchConfigForStore(
           storesConfigurations,
           storeIdentifier
         )
+        logger.info(`Elastic Search configuration for store is ${JSON.stringify(storeElasticConfiguration)}.`)
 
         const storeCurrency = currentStoreConfiguration.spreeCurrency
+
+        logger.info(`Currency for store is ${storeCurrency}.`)
   
         return accumulated.then(() => {
           return importStoreProducts(
@@ -380,18 +380,23 @@ program.command('products')
             ),
             partial(getVariantPrice, storeCurrency, _, _),
             partial(getMasterVariantPrice, storeCurrency, _, _),
-          )
+          ).then(() => {
+            logger.info(`Products for store ${storeIdentifier} imported.`)
+          })
         })
       }, Promise.resolve())
+        .then(() => {
+          logger.info('All products for all stores imported.')
+        })
         .catch(() => {
           process.exit(1)
         })
     } else {
-      logger.info(`Importing products for a single store configuration.`)
-
-      // TODO: add more logger.info
+      logger.info('Importing products for a single store configuration.')
 
       const singleElasticSearchConfiguration = getSingleElasticSearchConfiguration()
+
+      logger.info(`Elastic Search configuration for store is ${JSON.stringify(singleElasticSearchConfiguration)}.`)
 
       const {
         getVariantPrice,
@@ -410,23 +415,25 @@ program.command('products')
       )
 
       importSingleProducts
+        .then(() => {
+          logger.info('All products for store imported.')
+        })
         .catch(() => {
           process.exit(1)
         })
     }
 
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
+
+
+
+
+
+
+
+
+
+
+
   })
 
 // program.command('categories')
