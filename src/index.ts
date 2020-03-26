@@ -125,70 +125,65 @@ const getElasticClient = (storeElasticConfiguration: ElasticSearchOptions): Elas
   })
 )
 
-// const createIndices = () => {
-//   const settings = {
-//     analysis: {
-//       analyzer: {
-//         ngram_analyzer: {
-//           tokenizer: 'ngram_tokenizer',
-//           filter: 'lowercase'
-//         }
-//       },
-//       tokenizer: {
-//         ngram_tokenizer: {
-//           type: 'ngram',
-//           min_gram: 2,
-//           max_gram: 8,
-//           token_chars: [
-//             'letter', 'digit'
-//           ]
-//         }
-//       }
-//     }
-//   }
-//   const mappings = {
-//     product: {
-//       properties: {
-//         sku: {
-//           type: 'keyword'
-//         },
-//         size: {
-//           type: 'keyword'
-//         },
-//         color: {
-//           type: 'keyword'
-//         },
-//         name: {
-//           type: 'text',
-//           index: 'analyzed',
-//           analyzer: 'ngram_analyzer'
-//         }
-//       }
-//     },
-//     category: {
-//       properties: {
-//         url_key: {
-//           type: 'keyword'
-//         }
-//       }
-//     }
-//   }
+const createIndex = (storeElasticConfiguration: ElasticSearchOptions) => {
+  const settings = {
+    analysis: {
+      analyzer: {
+        ngram_analyzer: {
+          tokenizer: 'ngram_tokenizer',
+          filter: 'lowercase'
+        }
+      },
+      tokenizer: {
+        ngram_tokenizer: {
+          type: 'ngram',
+          min_gram: 2,
+          max_gram: 8,
+          token_chars: [
+            'letter', 'digit'
+          ]
+        }
+      }
+    }
+  }
+  const mappings = {
+    product: {
+      properties: {
+        sku: {
+          type: 'keyword'
+        },
+        size: {
+          type: 'keyword'
+        },
+        color: {
+          type: 'keyword'
+        },
+        name: {
+          type: 'text',
+          index: 'analyzed',
+          analyzer: 'ngram_analyzer'
+        }
+      }
+    },
+    category: {
+      properties: {
+        url_key: {
+          type: 'keyword'
+        }
+      }
+    }
+  }
 
-//   logger.info('Creating index.')
-//   getElasticClient().indices.create({
-//     index: elasticSearchOptions.index,
-//     body: {
-//       settings,
-//       mappings
-//     }
-//   })
-//     .then(() => {
-//       logger.info('Index created.')
-//     })
-//     .catch((error) => {
-//       logger.error(['Error: Cannot create indices or set proper setting and mapping.', error])
-//     })
-// }
+  logger.info('Creating index.')
+
+  return getElasticClient(storeElasticConfiguration).indices.create({
+    index: storeElasticConfiguration.index,
+    body: {
+      settings,
+      mappings
+    }
+  })
+}
 
 const getElasticBulkOperations = (elasticClient: ElasticClient, elasticSearchOptions: ElasticSearchOptions) => {
   let pendingOperations = Promise.resolve({ errors: [], operations: [], operationsCount: 0 })
@@ -294,7 +289,7 @@ program.command('remove-everything')
     } else {
       logger.info('Removing index.')
 
-      const singleElasticSearchConfiguration = getSingleElasticSearchConfiguration() 
+      const singleElasticSearchConfiguration = getSingleElasticSearchConfiguration()
       const index = singleElasticSearchConfiguration.index
 
       getElasticClient(singleElasticSearchConfiguration).indices.delete({ index })
@@ -307,10 +302,45 @@ program.command('remove-everything')
       }
   })
 
-// program.command('create-indices')
-//   .action(() => {
-//     createIndices()
-//   })
+program.command('create-indices')
+  .action(() => {
+    const storesConfigurations = getStoresConfiguration()
+
+    if (storesConfigurations.length > 0) {
+      logger.info('Creating indices.')
+
+      storesConfigurations.reduce((accumulated, currentStoreConfiguration) => {
+        const storeIdentifier = currentStoreConfiguration.identifier
+
+        const storeElasticConfiguration = getFullElasticSearchConfigForStore(
+          storesConfigurations,
+          storeIdentifier
+        )
+
+        return accumulated.then(() => {
+          return createIndex(storeElasticConfiguration)
+            .then(() => {
+              logger.info(`Index ${storeElasticConfiguration.index} created.`)
+            })
+            .catch((error) => {
+              logger.error(['Error: Cannot create indices or set proper settings and mapping.', error])
+            })
+        })
+      }, Promise.resolve())
+    } else {
+      logger.info('Creating index.') 
+
+      const singleElasticSearchConfiguration = getSingleElasticSearchConfiguration()
+
+      createIndex(singleElasticSearchConfiguration)
+        .then(() => {
+          logger.info('Index created.')
+        })
+        .catch((error) => {
+          logger.error(['Error: Cannot create indices or set proper settings and mapping.', error])
+        })
+    }
+  })
 
 program.command('products')
   .option(
