@@ -589,11 +589,12 @@ program.command('categories')
 //       })
 //   })
 
-// program.command('api-server')
-//   .action(() => {
-//     logger.info('Starting API server')
-//     server(getSpreeClient(), serverOptions)
-//   })
+program.command('api-server')
+  .action(() => {
+    logger.info('Starting API server')
+
+    server(getSpreeClient(), serverOptions)
+  })
 
 program.on('command:*', () => {
   logger.error('Invalid command: %s\nSee --help for a list of available commands.', program.args.join(' '))
