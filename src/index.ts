@@ -386,7 +386,7 @@ program.command('products')
     const storesConfigurations = getStoresConfiguration()
 
     if (storesConfigurations.length > 0) {
-      logger.info('Importing products from multiple stores')
+      logger.info('Importing products from multiple stores.')
 
       const {
         getVariantPrice,
@@ -469,38 +469,103 @@ program.command('products')
     }
   })
 
-// program.command('categories')
-//   .option(
-//     '-d, --date [date]',
-//     'Only replace categories updated_at since this date (all categories receive a new \'cursor\' anyway).'
-//   )
-//   .action((command) => {
-//     logger.info('Importing categories')
-//     let updatedSinceDate: Date | null
-//     let cursor: string
-//     if (command.date) {
-//       updatedSinceDate = new Date(command.date)
-//       cursor = updatedSinceDate.getTime().toString()
-//       logger.info(
-//         `Replacing categories with updated_at date greater than ${updatedSinceDate} (--date "${command.date}")` +
-//         ` and setting cursor to ${cursor}.`
-//       )
-//       logger.warn(
-//         'The --date param is an optimization.' +
-//         ' Make sure to provide a --date appropriate to the current Elastic Search state.' +
-//         ' Avoid using too recent --date. If unsure when Elastic Search was updated last time - skip this param.'
-//       )
-//     } else {
-//       updatedSinceDate = null
-//       cursor = new Date().getTime().toString()
-//       logger.info(`No date provided. Updating all categories and setting cursor to ${cursor}.`)
-//     }
+program.command('categories')
+  .option(
+    '-d, --date [date]',
+    'Only replace categories updated_at since this date (all categories receive a new \'cursor\' anyway).'
+  )
+  .action((command) => {
+    logger.info('Importing categories')
 
-//     importers.category(getSpreeClient(), getElasticBulkOperations(getElasticClient()), preconfigMapPages, cursor, updatedSinceDate)
-//       .catch(() => {
-//         process.exit(1)
-//       })
-//   })
+    let updatedSinceDate: Date | null
+    let cursor: string
+    if (command.date) {
+      updatedSinceDate = new Date(command.date)
+      cursor = updatedSinceDate.getTime().toString()
+      logger.info(
+        `Replacing categories with updated_at date greater than ${updatedSinceDate} (--date "${command.date}")` +
+        ` and setting cursor to ${cursor}.`
+      )
+      logger.warn(
+        'The --date param is an optimization.' +
+        ' Make sure to provide a --date appropriate to the current Elastic Search state.' +
+        ' Avoid using too recent --date. If unsure when Elastic Search was updated last time - skip this param.'
+      )
+    } else {
+      updatedSinceDate = null
+      cursor = new Date().getTime().toString()
+      logger.info(`No date provided. Updating all categories and setting cursor to ${cursor}.`)
+    }
+
+    const storesConfigurations = getStoresConfiguration()
+
+    const importCategories = partial(
+      importers.category,
+      getSpreeClient(),
+      _,
+      preconfigMapPages,
+      cursor,
+      updatedSinceDate
+    )
+
+    if (storesConfigurations.length > 0) {
+      logger.info('Importing categories from multiple stores.')
+
+      storesConfigurations.reduce((accumulated, currentStoreConfiguration) => {
+        const storeIdentifier = currentStoreConfiguration.identifier
+
+        logger.info(`Importing store with identifier = ${storeIdentifier}. Full store configuration is ${JSON.stringify(currentStoreConfiguration)}.`)
+
+        const storeElasticConfiguration = getFullElasticSearchConfigForStore(
+          storesConfigurations,
+          storeIdentifier
+        )
+        logger.info(`Elastic Search configuration for store is ${JSON.stringify(storeElasticConfiguration)}.`)
+
+        const storeCurrency = currentStoreConfiguration.spreeCurrency
+
+        logger.info(`Currency for store is ${storeCurrency}.`)
+
+        return accumulated.then(() => {
+          return importCategories(
+            getElasticBulkOperations(
+              getElasticClient(storeElasticConfiguration),
+              storeElasticConfiguration
+            )
+          ).then(() => {
+            logger.info(`Categories for store ${storeIdentifier} imported.`)
+          })
+        })
+      }, Promise.resolve())
+      .then(() => {
+        logger.info('All categories for all stores imported.')
+      })
+      .catch(() => {
+        process.exit(1)
+      })
+    } else {
+      logger.info('Importing categories for a single store configuration.')
+
+      const singleElasticSearchConfiguration = getSingleElasticSearchConfiguration()
+
+      logger.info(`Elastic Search configuration for store is ${JSON.stringify(singleElasticSearchConfiguration)}.`)
+
+      const importSingleCategories = importCategories(
+        getElasticBulkOperations(
+          getElasticClient(singleElasticSearchConfiguration),
+          singleElasticSearchConfiguration
+        )
+      )
+
+      importSingleCategories
+        .then(() => {
+          logger.info('All categories for store imported.')
+        })
+        .catch(() => {
+          process.exit(1)
+        })
+    }
+  })
 
 // program.command('product [ids...]')
 //   .action((ids: string[]) => {
