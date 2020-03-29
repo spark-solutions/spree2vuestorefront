@@ -497,8 +497,6 @@ program.command('categories')
       logger.info(`No date provided. Updating all categories and setting cursor to ${cursor}.`)
     }
 
-    const storesConfigurations = getStoresConfiguration()
-
     const importCategories = partial(
       importers.category,
       getSpreeClient(),
@@ -507,6 +505,8 @@ program.command('categories')
       cursor,
       updatedSinceDate
     )
+
+    const storesConfigurations = getStoresConfiguration()
 
     if (storesConfigurations.length > 0) {
       logger.info('Importing categories from multiple stores.')
@@ -520,6 +520,7 @@ program.command('categories')
           storesConfigurations,
           storeIdentifier
         )
+
         logger.info(`Elastic Search configuration for store is ${JSON.stringify(storeElasticConfiguration)}.`)
 
         const storeCurrency = currentStoreConfiguration.spreeCurrency
@@ -567,27 +568,78 @@ program.command('categories')
     }
   })
 
-// program.command('product [ids...]')
-//   .action((ids: string[]) => {
-//     if (ids.length === 0) {
-//       logger.error('at least one id required')
-//       process.exit(1)
-//     }
-//     getElasticClient().search({
-//       body: {
-//         query: {
-//           terms: {
-//             id: ids
-//           }
-//         }
-//       },
-//       index: 'vue_storefront_catalog',
-//       type: 'product'
-//     })
-//       .then((products: any) => {
-//         logger.info(products.hits.hits)
-//       })
-//   })
+program.command('product [ids...]')
+  .action((ids: string[]) => {
+    if (ids.length === 0) {
+      logger.error('at least one id required')
+
+      process.exit(1)
+    }
+
+    const storesConfigurations = getStoresConfiguration()
+
+    if (storesConfigurations.length > 0) {
+      storesConfigurations.reduce((accumulated, currentStoreConfiguration) => {
+
+        const storeIdentifier = currentStoreConfiguration.identifier
+
+        logger.info(`Importing store with identifier = ${storeIdentifier}. Full store configuration is ${JSON.stringify(currentStoreConfiguration)}.`)
+
+        const storeElasticConfiguration = getFullElasticSearchConfigForStore(
+          storesConfigurations,
+          storeIdentifier
+        )
+
+        logger.info(`Elastic Search configuration for store is ${JSON.stringify(storeElasticConfiguration)}.`)
+
+        const storeCurrency = currentStoreConfiguration.spreeCurrency
+
+        logger.info(`Currency for store is ${storeCurrency}.`)
+
+        return accumulated.then(() => {
+          return getElasticClient(storeElasticConfiguration).search({
+            body: {
+              query: {
+                terms: {
+                  id: ids
+                }
+              }
+            },
+            index: storeElasticConfiguration.index,
+            type: 'product'
+          })
+        })
+        .then((products: any) => {
+          logger.info(products.hits.hits)
+        })
+      }, Promise.resolve())
+      .catch(() => {
+        process.exit(1)
+      })
+    } else {
+      const singleElasticSearchConfiguration = getSingleElasticSearchConfiguration()
+
+      logger.info(`Elastic Search configuration for store is ${JSON.stringify(singleElasticSearchConfiguration)}.`)
+
+      getElasticClient(singleElasticSearchConfiguration).search({
+        body: {
+          query: {
+            terms: {
+              id: ids
+            }
+          }
+        },
+        index: singleElasticSearchConfiguration.index,
+        type: 'product'
+      })
+      .then((products: any) => {
+        logger.info(products.hits.hits)
+      })
+      .catch(() => {
+        process.exit(1)
+      })
+    }
+  })
 
 program.command('api-server')
   .action(() => {
