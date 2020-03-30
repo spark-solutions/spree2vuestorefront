@@ -8,7 +8,7 @@ import { partial, _ } from 'lodash'
 import importers from './importers'
 import * as singleCurrencyExtensionPoints from './importers/single-currency-extension-points'
 import * as multiCurrencyExtensionPoints from './importers/multi-currency-extension-points'
-import { JsonApiListResponse, JsonApiResponse, ElasticClient, ElasticSearchOptions, StoreConfiguration } from './interfaces'
+import { JsonApiListResponse, JsonApiResponse, ElasticClient, ElasticSearchOptions } from './interfaces'
 import server from './server'
 import {
   elasticBulkDelete,
@@ -18,71 +18,16 @@ import {
   pushElasticIndex,
   pushElasticUpdate
 } from './utils'
+import {
+  spreeOptions,
+  paginationOptions,
+  getSingleElasticSearchConfiguration,
+  getFullElasticSearchConfigForStore,
+  getStoresConfiguration,
+  serverOptions
+} from './utils/configuration'
 
 config()
-
-const spreeOptions = {
-  url: process.env.SPREE_URL,
-  imagesHost: process.env.SPREE_IMAGES_HOST,
-  path: process.env.SPREE_PATH
-}
-
-const serverOptions = {
-  port: process.env.SERVER_PORT
-}
-
-const paginationOptions = {
-  maxPages: +process.env.MAX_PAGES,
-  perPage: +process.env.PER_PAGE
-}
-
-const getStoresConfiguration = (): StoreConfiguration[] => {
-  const storesEnv = process.env.STORES
-
-  if (!storesEnv) {
-    return []
-  }
-
-  const storeIdentifiers = storesEnv.split(',')
-
-  const parsedStores = storeIdentifiers.map((identifier) => {
-    return {
-      identifier,
-      elasticIndex: process.env[`ES_INDEX_${identifier.toUpperCase()}`],
-      spreeCurrency: process.env[`SPREE_CURRENCY_${identifier.toUpperCase()}`]
-    }
-  })
-
-  return parsedStores
-}
-
-const getGenericElasticSearchConfiguration = (): ElasticSearchOptions => {
-  return {
-    bulkSize: +process.env.ES_BULK_SIZE,
-    url: process.env.ES_URL,
-    index: process.env.ES_INDEX,
-    logLevel: process.env.ES_LOG_LEVEL,
-    requestTimeout: +process.env.ES_REQUEST_TIMEOUT
-  }
-}
-
-const getSingleElasticSearchConfiguration = getGenericElasticSearchConfiguration
-
-const getFullElasticSearchConfigForStore = (
-  storesConfigurations: StoreConfiguration[],
-  storeIdentifier: string
-): ElasticSearchOptions => {
-  const storeConfiguration = storesConfigurations.find((storeConfiguration) => {
-    return storeConfiguration.identifier === storeIdentifier
-  })
-
-  const elasticSearchSharedConfiguration = getGenericElasticSearchConfiguration()
-
-  return {
-    ...elasticSearchSharedConfiguration,
-    index: storeConfiguration.elasticIndex
-  }
-}
 
 const getElasticClient = (storeElasticConfiguration: ElasticSearchOptions): ElasticClient => (
   elasticsearch.Client({
@@ -197,33 +142,11 @@ const getSpreeClient = (): Client => (
 const preconfigMapPages = (
   makePaginationRequest: (page: number, perPage: number) => Promise<ResultResponse<JsonApiListResponse>>,
   resourceCallback: (response: JsonApiResponse) => any
-): Promise<any> =>
-  mapPages(makePaginationRequest, resourceCallback, paginationOptions.perPage, paginationOptions.maxPages)
+): Promise<any> => {
+  const { perPage, maxPages } = paginationOptions()
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+  return mapPages(makePaginationRequest, resourceCallback, perPage, maxPages)
+}
 
 program.command('remove-everything')
   .action(() => {
