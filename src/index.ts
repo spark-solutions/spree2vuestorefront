@@ -31,25 +31,10 @@ const serverOptions = {
   port: process.env.SERVER_PORT
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-// const elasticSearchOptions: ElasticSearchOptions = {
-//   bulkSize: +process.env.ES_BULK_SIZE,
-//   url: process.env.ES_URL,
-//   index: process.env.ES_INDEX,
-//   logLevel: process.env.ES_LOG_LEVEL,
-//   requestTimeout: +process.env.ES_REQUEST_TIMEOUT
-// }
+const paginationOptions = {
+  maxPages: +process.env.MAX_PAGES,
+  perPage: +process.env.PER_PAGE
+}
 
 const getStoresConfiguration = (): StoreConfiguration[] => {
   const storesEnv = process.env.STORES
@@ -97,25 +82,6 @@ const getFullElasticSearchConfigForStore = (
     ...elasticSearchSharedConfiguration,
     index: storeConfiguration.elasticIndex
   }
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-const paginationOptions = {
-  maxPages: +process.env.MAX_PAGES,
-  perPage: +process.env.PER_PAGE
 }
 
 const getElasticClient = (storeElasticConfiguration: ElasticSearchOptions): ElasticClient => (

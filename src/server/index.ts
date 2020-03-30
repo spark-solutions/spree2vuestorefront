@@ -326,7 +326,17 @@ export default (spreeClient: Client, serverOptions: any) => {
       })
   })
 
-  app.get('/api/cart/pull', (request, response) => {
+  const ensureStore = (request, _response, next) => {
+    const requestStoreCode = request.query.storeCode
+
+    if (!requestStoreCode) {
+      logger.info(`No storeCode param provided, using default store.`)
+    }
+
+    
+  }
+
+  app.get('/api/cart/pull', ensureStore, (request, response) => {
     logger.info('Fetching cart')
     const cartId = request.query.cartId
 
