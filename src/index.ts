@@ -1,4 +1,3 @@
-import { makeClient } from '@spree/storefront-api-v2-sdk'
 import Client from '@spree/storefront-api-v2-sdk/types/Client'
 import { ResultResponse } from '@spree/storefront-api-v2-sdk/types/interfaces/ResultResponse'
 import * as program from 'commander'
@@ -26,6 +25,7 @@ import {
   getStoresConfiguration,
   serverOptions
 } from './utils/configuration'
+import { MultiCurrencySpreeClient } from './utils/MultiCurrencySpreeClient'
 
 config()
 
@@ -133,8 +133,8 @@ const getElasticBulkOperations = (elasticClient: ElasticClient, elasticSearchOpt
   }
 }
 
-const getSpreeClient = (): Client => (
-  makeClient({
+const getSpreeClient = () => (
+  new MultiCurrencySpreeClient({
     host: spreeOptions.url
   })
 )

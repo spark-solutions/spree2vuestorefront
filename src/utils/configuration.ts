@@ -35,6 +35,10 @@ export const getStoresConfiguration = (): StoreConfiguration[] => {
   return parsedStores
 }
 
+export const getDefaultStoreIdentifier = (): string | null => {
+  return process.env['STORES_DEFAULT'] || null
+}
+
 export const getGenericElasticSearchConfiguration = (): ElasticSearchOptions => {
   return {
     bulkSize: parseInt(process.env.ES_BULK_SIZE),

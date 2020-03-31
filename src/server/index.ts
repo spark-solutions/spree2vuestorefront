@@ -2,13 +2,12 @@ import { errors, Result } from '@spree/storefront-api-v2-sdk'
 import Client from '@spree/storefront-api-v2-sdk/types/Client'
 import { SpreeSDKError } from '@spree/storefront-api-v2-sdk/types/errors'
 import { NestedAttributes } from '@spree/storefront-api-v2-sdk/types/interfaces/endpoints/CheckoutClass'
-import { IEstimatedShippingMethodsResult, EstimatedShippingMethodAttr } from '@spree/storefront-api-v2-sdk/types/interfaces/EstimatedShippingMethod'
 import { JsonApiResponse } from '@spree/storefront-api-v2-sdk/types/interfaces/JsonApi'
 import { IOrder, IOrderResult } from '@spree/storefront-api-v2-sdk/types/interfaces/Order'
 import { RelationType } from '@spree/storefront-api-v2-sdk/types/interfaces/Relationships'
 import { Result as ResultType } from '@spree/storefront-api-v2-sdk/types/interfaces/Result'
 import { ResultResponse } from '@spree/storefront-api-v2-sdk/types/interfaces/ResultResponse'
-import { IShippingMethodsResult, ShippingMethodAttr } from '@spree/storefront-api-v2-sdk/types/interfaces/ShippingMethod'
+import { IShippingMethodsResult } from '@spree/storefront-api-v2-sdk/types/interfaces/ShippingMethod'
 import { IToken } from '@spree/storefront-api-v2-sdk/types/interfaces/Token'
 import cors from 'cors'
 import * as express from 'express'
@@ -21,8 +20,12 @@ import {
   logger,
   variantFromSku
 } from '../utils'
+import { getStoresConfiguration, getDefaultStoreIdentifier } from '../utils/configuration'
+import BadStoreIdentifierError from '../utils/BadStoreIdentifierError'
+import { MultiCurrencySpreeClient } from '../utils/MultiCurrencySpreeClient'
+import CurrencyUpdateError from '../utils/CurrencyUpdateError'
 
-export default (spreeClient: Client, serverOptions: any) => {
+export default (spreeClient: MultiCurrencySpreeClient, serverOptions: any) => {
   type MaybePromiseResult = Promise<ResultResponse<JsonApiResponse>> | ResultResponse<JsonApiResponse>
 
   class ShippingMethodMissingError extends Error { }
@@ -305,7 +308,9 @@ export default (spreeClient: Client, serverOptions: any) => {
   app.use(express.json())
 
   app.post('/api/cart/create', (_, response) => {
+    // TODO: currency CAN be set while creating a cart. but make sure the currency in storeCode exists inside the envs SPREE_CURRENCY_<country>
     logger.info('Fetching new cart token for guest user.')
+
     spreeClient.cart.create()
       .then((spreeResponse) => {
         if (spreeResponse.isSuccess()) {
@@ -327,13 +332,78 @@ export default (spreeClient: Client, serverOptions: any) => {
   })
 
   const ensureStore = (request, _response, next) => {
+    // TODO: Move ensureStore function before all endpoints.
+    logger.info('Updating order currency if needed based on storeCode in request.')
+
     const requestStoreCode = request.query.storeCode
+    const storesConfiguration = getStoresConfiguration()
+
+    // TODO: move everything so separate function and and run AFTER cart creation (in '/api/cart/create') but BEFORE other endpoints.
+    // After running '/api/cart/create', send the cart from '/api/cart/create' to this function so it doesn't have to be downloaded again. Make this optional.
+
+    // TODO: only use this method if there are multiple stores.
 
     if (!requestStoreCode) {
-      logger.info(`No storeCode param provided, using default store.`)
-    }
+      logger.info('No storeCode param provided, using default store.')
 
-    
+      const defaultStoreIdentifier = getDefaultStoreIdentifier()
+      const storeConfiguration = storesConfiguration.find((storeConfiguration) => storeConfiguration.identifier === defaultStoreIdentifier)
+      const storeCurrency = storeConfiguration.spreeCurrency
+    } else {
+      logger.info('storeCode param provided, searching for associated currency.')
+
+      const storeConfiguration = storesConfiguration.find((storeConfiguration) => storeConfiguration.identifier === requestStoreCode)
+
+      if (!storeConfiguration) {
+        next(new BadStoreIdentifierError(`storeCode ${requestStoreCode} not recognized.`))
+        return
+      }
+
+      const storeCurrency = storeConfiguration.spreeCurrency
+
+      logger.info(`Configuration for storeCode ${requestStoreCode} found. Comparing storeCode to store used in cart.`)
+
+      const token = getTokenOptions(request)
+
+      spreeClient.cart.show(token)
+        .then((spreeCartShowResponse) => {
+          if (spreeCartShowResponse.isSuccess()) {
+            logger.info(`Cart fetched.`)
+            
+            const successResponse = spreeCartShowResponse.success()
+            const cartCurrency = successResponse.data.attributes.currency
+            const cartNumber = successResponse.data.attributes.number
+
+            logger.info(`Cart number is ${cartNumber} and current currency is ${cartCurrency}.`)
+
+            if (storeConfiguration.spreeCurrency === cartCurrency) {
+              logger.info('Cart currency same as orderCode currency. Not updating cart currency.')
+              next()
+              return
+            }
+
+            logger.info('Cart currency different than orderCode currency. Updating cart currency.')
+            
+            spreeClient.currency.update(getTokenOptions(request), { currency: storeCurrency })
+              .then((spreeCurrencyUpdateResponse) => {
+                if (spreeCurrencyUpdateResponse.isSuccess()) {
+                  logger.info(`Currency updated for cart number ${cartNumber}.`)
+
+                  next()
+                  return
+                }
+
+                logger.error([`Couldn't update currency for cart number ${cartNumber}.`, spreeCurrencyUpdateResponse.fail()])
+
+                next(new CurrencyUpdateError(`Couldn't update currency for cart number ${cartNumber}.`))
+              })
+            return
+          }
+
+          logger.info([`Cannot retrieve cart for token ${JSON.stringify(token)}.`, spreeCartShowResponse.fail()])
+          next(new CurrencyUpdateError(`Couldn't update currency for cart.`))
+        })
+    }
   }
 
   app.get('/api/cart/pull', ensureStore, (request, response) => {
