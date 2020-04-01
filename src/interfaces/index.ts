@@ -1,3 +1,5 @@
+import { Request } from "express"
+
 export interface BackendOptions { }
 export interface SpreeProduct { }
 export interface Document {
@@ -107,4 +109,9 @@ export interface GetMasterVariantPrice extends GetPrice { }
 
 export interface GetProductsListIncludes {
   (): string
+}
+
+export interface StoreCodeRequest extends Request {
+  multiStore: boolean,
+  storeConfiguration: StoreConfiguration
 }

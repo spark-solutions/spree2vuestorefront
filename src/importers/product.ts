@@ -12,7 +12,6 @@ import {
   GetMasterVariantPrice
 } from '../interfaces'
 import {
-  FatalError,
   findIncluded,
   findIncludedOfType,
   findOptionTypeFromOptionValue,
@@ -25,6 +24,7 @@ import {
   logger,
   passFatal
 } from '../utils'
+import { FatalError } from '../utils/errors'
 
 const sortyByPositionAttribute = (a: PositionedDocument, b: PositionedDocument) => {
   if (a.attributes.position > b.attributes.position) { return 1 }
