@@ -316,7 +316,7 @@ export default (spreeClient: MultiCurrencySpreeClient, serverOptions: any) => {
     if (request.multiStore) {
       const storeConfiguration: StoreConfiguration = request.storeConfiguration
 
-      createCartRequest = spreeClient.currency.createCartWithCurrency(null, { currency: storeConfiguration.spreeCurrency })
+      createCartRequest = spreeClient.currency.createCartWithCurrency(undefined, { currency: storeConfiguration.spreeCurrency })
     } else {
       createCartRequest = spreeClient.cart.create()
     }

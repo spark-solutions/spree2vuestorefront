@@ -33,7 +33,7 @@ export const storeCode = (request, _response, next) => {
 
     const storeConfiguration = storesConfiguration.find((storeConfiguration) => storeConfiguration.identifier === defaultStoreIdentifier)
 
-    if (storeConfiguration) {
+    if (!storeConfiguration) {
       logger.error('No default store identifier configuration provided.')
 
       next(new NoDefaultStoreError('Default store identifier required when using multi store.'))
