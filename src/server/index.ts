@@ -11,7 +11,7 @@ import { IShippingMethodsResult } from '@spree/storefront-api-v2-sdk/types/inter
 import { IToken } from '@spree/storefront-api-v2-sdk/types/interfaces/Token'
 import cors from 'cors'
 import * as express from 'express'
-import { JsonApiSingleResponse, ShippingMethodsDescription } from '../interfaces'
+import { JsonApiSingleResponse, ShippingMethodsDescription, StoreConfiguration } from '../interfaces'
 import {
   findIncluded,
   findIncludedOfType,
@@ -24,6 +24,9 @@ import { getStoresConfiguration, getDefaultStoreIdentifier } from '../utils/conf
 import BadStoreIdentifierError from '../utils/BadStoreIdentifierError'
 import { MultiCurrencySpreeClient } from '../utils/MultiCurrencySpreeClient'
 import CurrencyUpdateError from '../utils/CurrencyUpdateError'
+import NoDefaultStoreIdentifierError from '../utils/NoDefaultStoreIdentifierError'
+import NoDefaultStoreError from '../utils/NoDefaultStoreError'
+import NoStoresError from '../utils/NoStoresError'
 
 export default (spreeClient: MultiCurrencySpreeClient, serverOptions: any) => {
   type MaybePromiseResult = Promise<ResultResponse<JsonApiResponse>> | ResultResponse<JsonApiResponse>
@@ -303,18 +306,95 @@ export default (spreeClient: MultiCurrencySpreeClient, serverOptions: any) => {
       })
   }
 
+  const storeCode = (request, _response, next) => {
+    logger.info('Retrieving store information based on storeCode in request (if available).')
+
+    const requestStoreCode = request.query.storeCode
+    const storesConfiguration = getStoresConfiguration()
+
+    if (!requestStoreCode) {
+      logger.info('No storeCode param provided, using default store.')
+
+      if (storesConfiguration.length === 0) {
+        logger.info('No multi store configuration provided.')
+
+        request.storeConfiguration = null
+        request.multiStore = false
+        next()
+        return
+      }
+
+      const defaultStoreIdentifier = getDefaultStoreIdentifier()
+
+      if (!defaultStoreIdentifier) {
+        logger.error('No default store identifier configured.')
+
+        next(new NoDefaultStoreIdentifierError(`Default store identifier required when using multi store.`))
+        return
+      }
+
+      const storeConfiguration = storesConfiguration.find((storeConfiguration) => storeConfiguration.identifier === defaultStoreIdentifier)
+
+      if (storeConfiguration) {
+        logger.error('No default store identifier configuration provided.')
+
+        next(new NoDefaultStoreError('Default store identifier required when using multi store.'))
+        return
+      }
+
+      request.storeConfiguration = storeConfiguration
+      request.multiStore = true
+      next()
+      return
+    }
+
+    logger.info('storeCode param provided, searching for associated currency.')
+
+    if (storesConfiguration.length === 0) {
+      logger.error('No multi store configuration provided.')
+
+      next(new NoStoresError('No multi store configuration.'))
+      return
+    }
+
+    const storeConfiguration = storesConfiguration.find((storeConfiguration) => storeConfiguration.identifier === requestStoreCode)
+
+    if (!storeConfiguration) {
+      logger.error(`storeCode ${requestStoreCode} not recognized.`)
+
+      next(new BadStoreIdentifierError(`storeCode ${requestStoreCode} not recognized.`))
+      return
+    }
+
+    request.storeConfiguration = storeConfiguration
+    request.multiStore = true
+    next()
+  }
+
   const app = express()
+
   app.use(cors())
   app.use(express.json())
+  app.use(storeCode)
 
-  app.post('/api/cart/create', (_, response) => {
-    // TODO: currency CAN be set while creating a cart. but make sure the currency in storeCode exists inside the envs SPREE_CURRENCY_<country>
+  app.post('/api/cart/create', (request: any/*FIXME: remove any and use a more specific type*/, response) => {
     logger.info('Fetching new cart token for guest user.')
 
-    spreeClient.cart.create()
+    let createCartRequest
+
+    if (request.multiStore) {
+      const storeConfiguration: StoreConfiguration = request.storeConfiguration
+
+      createCartRequest = spreeClient.currency.createCartWithCurrency(null, { currency: storeConfiguration.spreeCurrency })
+    } else {
+      createCartRequest = spreeClient.cart.create()
+    }
+
+    createCartRequest
       .then((spreeResponse) => {
         if (spreeResponse.isSuccess()) {
           logger.info('New token for guest user fetched.')
+
           const spreeToken = spreeResponse.success().data.attributes.token
           response.json({
             code: 200,
@@ -322,6 +402,7 @@ export default (spreeClient: MultiCurrencySpreeClient, serverOptions: any) => {
           })
         } else {
           logger.error(['Could not create a new cart.', spreeResponse.fail()])
+
           response.statusCode = 500
           response.json({
             code: 500,
@@ -332,13 +413,20 @@ export default (spreeClient: MultiCurrencySpreeClient, serverOptions: any) => {
   })
 
   const ensureStore = (request, _response, next) => {
+    // FIXME: USE storeCode from middleware and reduce the code below.
+    // FIXME: USE storeCode from middleware and reduce the code below.
+    // FIXME: USE storeCode from middleware and reduce the code below.
+    // FIXME: USE storeCode from middleware and reduce the code below.
+    // FIXME: USE storeCode from middleware and reduce the code below.
+
+
     // TODO: Move ensureStore function before all endpoints.
     logger.info('Updating order currency if needed based on storeCode in request.')
 
     const requestStoreCode = request.query.storeCode
     const storesConfiguration = getStoresConfiguration()
 
-    // TODO: move everything so separate function and and run AFTER cart creation (in '/api/cart/create') but BEFORE other endpoints.
+    // TODO: move everything to separate function and run AFTER cart creation (in '/api/cart/create') but BEFORE other endpoints.
     // After running '/api/cart/create', send the cart from '/api/cart/create' to this function so it doesn't have to be downloaded again. Make this optional.
 
     // TODO: only use this method if there are multiple stores.
@@ -349,6 +437,8 @@ export default (spreeClient: MultiCurrencySpreeClient, serverOptions: any) => {
       const defaultStoreIdentifier = getDefaultStoreIdentifier()
       const storeConfiguration = storesConfiguration.find((storeConfiguration) => storeConfiguration.identifier === defaultStoreIdentifier)
       const storeCurrency = storeConfiguration.spreeCurrency
+
+      // FIXME: here, need to update currency if default store currency is different than order currency
     } else {
       logger.info('storeCode param provided, searching for associated currency.')
 
