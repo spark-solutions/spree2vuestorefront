@@ -1,18 +1,16 @@
 import { errors, Result } from '@spree/storefront-api-v2-sdk'
-import Client from '@spree/storefront-api-v2-sdk/types/Client'
 import { SpreeSDKError } from '@spree/storefront-api-v2-sdk/types/errors'
 import { NestedAttributes } from '@spree/storefront-api-v2-sdk/types/interfaces/endpoints/CheckoutClass'
-import { IEstimatedShippingMethodsResult, EstimatedShippingMethodAttr } from '@spree/storefront-api-v2-sdk/types/interfaces/EstimatedShippingMethod'
 import { JsonApiResponse } from '@spree/storefront-api-v2-sdk/types/interfaces/JsonApi'
 import { IOrder, IOrderResult } from '@spree/storefront-api-v2-sdk/types/interfaces/Order'
 import { RelationType } from '@spree/storefront-api-v2-sdk/types/interfaces/Relationships'
 import { Result as ResultType } from '@spree/storefront-api-v2-sdk/types/interfaces/Result'
 import { ResultResponse } from '@spree/storefront-api-v2-sdk/types/interfaces/ResultResponse'
-import { IShippingMethodsResult, ShippingMethodAttr } from '@spree/storefront-api-v2-sdk/types/interfaces/ShippingMethod'
+import { IShippingMethodsResult } from '@spree/storefront-api-v2-sdk/types/interfaces/ShippingMethod'
 import { IToken } from '@spree/storefront-api-v2-sdk/types/interfaces/Token'
 import cors from 'cors'
 import * as express from 'express'
-import { JsonApiSingleResponse, ShippingMethodsDescription } from '../interfaces'
+import { JsonApiSingleResponse, ShippingMethodsDescription, StoreConfiguration, StoreCodeRequest } from '../interfaces'
 import {
   findIncluded,
   findIncludedOfType,
@@ -21,8 +19,10 @@ import {
   logger,
   variantFromSku
 } from '../utils'
+import { MultiCurrencySpreeClient } from '../utils/MultiCurrencySpreeClient'
+import { storeCode, createEnsureStore } from './middlewares/multiStore'
 
-export default (spreeClient: Client, serverOptions: any) => {
+export default (spreeClient: MultiCurrencySpreeClient, serverOptions: any) => {
   type MaybePromiseResult = Promise<ResultResponse<JsonApiResponse>> | ResultResponse<JsonApiResponse>
 
   class ShippingMethodMissingError extends Error { }
@@ -301,15 +301,31 @@ export default (spreeClient: Client, serverOptions: any) => {
   }
 
   const app = express()
+
   app.use(cors())
   app.use(express.json())
+  app.use(storeCode)
 
-  app.post('/api/cart/create', (_, response) => {
+  const ensureStore = createEnsureStore(spreeClient)
+
+  app.post('/api/cart/create', (request: StoreCodeRequest, response) => {
     logger.info('Fetching new cart token for guest user.')
-    spreeClient.cart.create()
+
+    let createCartRequest
+
+    if (request.multiStore) {
+      const storeConfiguration: StoreConfiguration = request.storeConfiguration
+
+      createCartRequest = spreeClient.currency.createCartWithCurrency(undefined, { currency: storeConfiguration.spreeCurrency })
+    } else {
+      createCartRequest = spreeClient.cart.create()
+    }
+
+    createCartRequest
       .then((spreeResponse) => {
         if (spreeResponse.isSuccess()) {
           logger.info('New token for guest user fetched.')
+
           const spreeToken = spreeResponse.success().data.attributes.token
           response.json({
             code: 200,
@@ -317,6 +333,7 @@ export default (spreeClient: Client, serverOptions: any) => {
           })
         } else {
           logger.error(['Could not create a new cart.', spreeResponse.fail()])
+
           response.statusCode = 500
           response.json({
             code: 500,
@@ -326,7 +343,7 @@ export default (spreeClient: Client, serverOptions: any) => {
       })
   })
 
-  app.get('/api/cart/pull', (request, response) => {
+  app.get('/api/cart/pull', ensureStore, (request, response) => {//TODO: add ensureStore to more places
     logger.info('Fetching cart')
     const cartId = request.query.cartId
 

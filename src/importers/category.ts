@@ -1,6 +1,7 @@
 import Client from '@spree/storefront-api-v2-sdk/types/Client'
 import { JsonApiDocument } from '../interfaces'
-import { FatalError, getCategories, getCategoriesOnPath, logger, passFatal } from '../utils'
+import { getCategories, getCategoriesOnPath, logger, passFatal } from '../utils'
+import { FatalError } from '../utils/errors'
 
 const convertToESCategory = (category, categories, cursor) => {
   const relationships = category.relationships

@@ -11,7 +11,7 @@ import {
   JsonApiResponse,
   SpreeProductImage
 } from '../interfaces'
-import FatalError from './FatalError'
+import { FatalError } from './errors'
 
 const makeLogger = () => {
   const { format: { combine, json, timestamp } } = winston

@@ -1,3 +1,5 @@
+import { Request } from "express"
+
 export interface BackendOptions { }
 export interface SpreeProduct { }
 export interface Document {
@@ -76,4 +78,40 @@ export enum ESProductType {
 export interface ShippingMethodsDescription {
   orderToken: string,
   deferred: Promise<any>
+}
+
+export interface ElasticSearchOptions {
+  bulkSize: number,
+  url: string,
+  index: string,
+  logLevel: string,
+  requestTimeout: number
+}
+
+export interface ElasticClient {
+  search: any,
+  indices: any
+}
+
+export interface StoreConfiguration {
+  identifier: string,
+  elasticIndex: string,
+  spreeCurrency: string
+}
+
+export interface GetPrice {
+  (variant: JsonApiDocument, response: JsonApiResponse): number
+}
+
+export interface GetVariantPrice extends GetPrice { }
+
+export interface GetMasterVariantPrice extends GetPrice { }
+
+export interface GetProductsListIncludes {
+  (): string
+}
+
+export interface StoreCodeRequest extends Request {
+  multiStore: boolean,
+  storeConfiguration: StoreConfiguration
 }
