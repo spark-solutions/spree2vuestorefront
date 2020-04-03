@@ -70,13 +70,11 @@ There's also a **diagnostic command**:
 
 ### Production
 
-**Important:** Running the project in Docker without using Docker Compose will remove the Elastic Search index used for spree2vs. To override this behavior, run the Docker image with a different `CMD` than the default.
-
 Steps:
 
-1. Create a .env file based on .env.sample.
-1. `docker build spark-solutions/spree2vs`
-1. `docker run --env-file .env spark-solutions/spree2vs`
+1. Create a `.env` file based on `.env.sample`.
+1. `docker-compose -f docker-compose-prod.yml build`
+1. `docker-compose -f docker-compose-prod.yml up`
 
 The production image runs two processes simultaneously:
 1. A HTTP server to handle user management (cart, order, etc.). It's restarted automatically on critical errors.
@@ -86,15 +84,16 @@ The production image runs two processes simultaneously:
 
 ### Development
 
-1. `./docker-bin/start.sh` to start the development environment.
-1. `./docker-bin/spree2vs.sh yarn install` - installs npm modules.
-1. `./docker-bin/spree2vs.sh yarn watch` - starts a Webpack server which continuously rebuilds the project from source files.
-1. `./docker-bin/spree2vs.sh ./dist/index.js remove-everything` (or `./docker-bin/spree2vs.sh node ./dist/index.js  remove-everything` in case of "permission denied" error) - removes all records in Elastic Search.
-1. `./docker-bin/spree2vs.sh ./dist/index.js create-indices` (or `./docker-bin/spree2vs.sh node ./dist/index.js create-indices` in case of "permission denied" error) - sets up Elastic Search to accept Spree records.
-1. `./docker-bin/spree2vs.sh yarn import:all` (or `./docker-bin/spree2vs.sh node ./dist/index.js products` then `./docker-bin/spree2vs.sh node ./dist/index.js categories` in case of "permission denied" error) - imports products, attributes and categories from Spree to the ES catalog. In production mode, this script runs as a cron job at set intervals.
-1. `./docker-bin/spree2vs.sh yarn server` - starts a Node server which allows cart, order and account management in Spree when using Vue Storefront.
+Steps:
 
-To shutdown the environment: `./docker-bin/stop.sh`.
+1. Add `127.0.0.1 host.docker.internal` to `/etc/hosts`.
+1. Install NPM modules: `./bin/exec yarn install`.
+1. Start a Webpack task which continuously rebuilds the project from source: `./bin/exec yarn watch`.
+1. Setup Elastic Search to accept Spree records: `./bin/exec yarn create-indices`.
+1. Import products, categories and attributes from Spree to the ES catalog: `./bin/exec yarn import:all`. In production mode, this script runs as a cron job at set intervals.
+1. Run a Node server which allows order management in Spree by calling spree2vs endpoints: `./bin/exec yarn server`.
+
+To remove the entire Elastic Search database: `./bin/exec yarn remove-everything`.
 
 ## Limitations
 
