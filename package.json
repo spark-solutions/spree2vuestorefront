@@ -46,7 +46,7 @@
     "dotenv": "^6.2.0",
     "elasticsearch": "^15.4.1",
     "express": "^4.16.4",
-    "lodash": "^4.17.15",
+    "lodash": "^4.17.19",
     "pm2": "^3.5.0",
     "serialize-error": "^3.0.0",
     "winston": "^3.2.1"
