@@ -184,13 +184,13 @@ const importProducts = (
               // created_at - Spree doesn't return created date, use available_on as replacement
               created_at: product.attributes.available_on,
               cursor,
-              description: defaultVariant.attributes.description,
+              description: product.attributes.description,
               final_price: price, // 'final_price' field is used when filtering products in a category
               has_options: hasOptions, // easy way of checking if variants have selectable options
               id: +product.id,
               image: getImageUrl(images[0] as SpreeProductImage, 800, 800) || '',
               media_gallery: images.length > 0 ? mediaGallery : null,
-              name: defaultVariant.attributes.name,
+              name: product.attributes.name,
               news_from_date: null, // start date for when product is "in the news" (featured)
               news_to_date: null, // end date for when product is "in the news" (featured)
               price,
