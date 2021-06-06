@@ -8,8 +8,9 @@ export const getPrice = (currency, variant, response) => {
     return parseFloat(price.attributes.amount)
   } else {
     logger.warn(
-      `No price in currency ${currency} found for variant with id ${variant.id}. Using fallback price for currency.`
+      `No price in currency ${currency} found for variant with id ${variant.id}. Using fallback price for currency - ${Number.MAX_SAFE_INTEGER}.`
     )
+
     return Number.MAX_SAFE_INTEGER
   }
 }
