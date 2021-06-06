@@ -39,7 +39,7 @@
     "webpack-node-externals": "^1.7.2"
   },
   "dependencies": {
-    "@spree/storefront-api-v2-sdk": "^4.0.2",
+    "@spree/storefront-api-v2-sdk": "^4.5.3",
     "body-parser": "^1.19.0",
     "commander": "^2.19.0",
     "cors": "^2.8.5",

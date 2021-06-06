@@ -1,4 +1,4 @@
-import { errors, Result } from '@spree/storefront-api-v2-sdk'
+import { errors, result } from '@spree/storefront-api-v2-sdk'
 import { SpreeSDKError } from '@spree/storefront-api-v2-sdk/types/errors'
 import { NestedAttributes } from '@spree/storefront-api-v2-sdk/types/interfaces/endpoints/CheckoutClass'
 import { JsonApiResponse } from '@spree/storefront-api-v2-sdk/types/interfaces/JsonApi'
@@ -68,7 +68,7 @@ export default (spreeClient: MultiCurrencySpreeClient, serverOptions: any) => {
           totalSegments.push({ code: 'tax', title: 'Included Tax', value: resultAttr.included_tax_total })
         }
 
-        const result = {
+        const resultValue = {
           coupon_code: parseFloat(resultAttr.promo_total) !== 0 ? '42' : '',
           discount_amount: resultAttr.promo_total,
           grand_total: resultAttr.total,
@@ -79,7 +79,7 @@ export default (spreeClient: MultiCurrencySpreeClient, serverOptions: any) => {
           total_segments: totalSegments,
           items
         }
-        return Result.success(result)
+        return result.makeSuccess(resultValue)
       } else {
         return spreeResponse
       }
@@ -277,8 +277,8 @@ export default (spreeClient: MultiCurrencySpreeClient, serverOptions: any) => {
               order: {
                 shipments_attributes: [
                   {
-                    id: parseInt(pickedShipment.id, 10),
-                    selected_shipping_rate_id: parseInt(shippingRate.id, 10)
+                    id: pickedShipment.id,
+                    selected_shipping_rate_id: shippingRate.id
                   }
                 ]
               }
@@ -291,7 +291,7 @@ export default (spreeClient: MultiCurrencySpreeClient, serverOptions: any) => {
         } else {
           logger.info('No shipment choices available for order.')
         }
-        return Result.fail(new ShippingMethodMissingError('Estimated shipping method is not available.'))
+        return result.makeFail(new ShippingMethodMissingError('Estimated shipping method is not available.'))
       } else {
         logger.error(['Shipping rates could not be fetched.', shippingResponse.fail()])
         return shippingResponse

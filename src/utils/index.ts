@@ -1,7 +1,7 @@
 import { ResultResponse } from '@spree/storefront-api-v2-sdk/types/interfaces/ResultResponse'
 import { IToken } from '@spree/storefront-api-v2-sdk/types/interfaces/Token'
 import serializeError from 'serialize-error'
-import * as winston from 'winston'
+import winston from 'winston'
 import {
   ElasticOperation,
   ESImage,

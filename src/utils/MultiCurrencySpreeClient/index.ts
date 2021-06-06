@@ -5,8 +5,8 @@ import { Currency } from './endpoints/Currency'
 export class MultiCurrencySpreeClient extends Client {
   public currency: Currency
 
-  constructor(config: IClientConfig) {
+  constructor(config: IClientConfig = {}) {
     super(config)
-    this.currency = new Currency(config.host)
+    this.currency = new Currency(this.host)
   }
 }
