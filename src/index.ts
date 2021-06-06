@@ -1,6 +1,5 @@
-import Client from '@spree/storefront-api-v2-sdk/types/Client'
 import { ResultResponse } from '@spree/storefront-api-v2-sdk/types/interfaces/ResultResponse'
-import * as program from 'commander'
+import program from 'commander'
 import { config } from 'dotenv'
 import elasticsearch from 'elasticsearch'
 import { partial, _ } from 'lodash'
