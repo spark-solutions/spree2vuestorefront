@@ -29,6 +29,7 @@ const getElasticClient = (storeElasticConfiguration: ElasticSearchOptions): Elas
 
 const createIndex = (storeElasticConfiguration: ElasticSearchOptions) => {
   const settings = {
+    'index.mapping.total_fields.limit': 2000,
     analysis: {
       analyzer: {
         ngram_analyzer: {
