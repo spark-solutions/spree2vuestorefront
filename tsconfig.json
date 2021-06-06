@@ -1,10 +1,12 @@
 {
   "compilerOptions": {
-    "target": "es6",
+    "module": "commonjs",
     "moduleResolution": "node",
     "noUnusedParameters": true,
     "sourceMap": true,
     "experimentalDecorators": true,
-    "emitDecoratorMetadata": true
+    "emitDecoratorMetadata": true,
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true
   }
 }

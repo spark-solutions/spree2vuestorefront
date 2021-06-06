@@ -1,6 +1,6 @@
-import { Client } from "@spree/storefront-api-v2-sdk"
-import { IClientConfig } from "@spree/storefront-api-v2-sdk/types/Client"
-import { Currency } from "./endpoints/Currency"
+import { Client } from '@spree/storefront-api-v2-sdk'
+import { IClientConfig } from '@spree/storefront-api-v2-sdk/types/Client'
+import { Currency } from './endpoints/Currency'
 
 export class MultiCurrencySpreeClient extends Client {
   public currency: Currency

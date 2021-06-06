@@ -1,16 +1,16 @@
-import { Request } from "express"
+import { Request } from 'express'
 
-export interface BackendOptions { }
-export interface SpreeProduct { }
+export interface BackendOptions {}
+export interface SpreeProduct {}
 export interface Document {
   id: any
 }
 export interface JsonApiResponse {
-  data: JsonApiDocument | JsonApiDocument[],
+  data: JsonApiDocument | JsonApiDocument[]
   included?: JsonApiDocument[]
 }
 export interface JsonApiListResponse extends JsonApiResponse {
-  data: JsonApiDocument[],
+  data: JsonApiDocument[]
   meta?: {
     total_pages: number
   }
@@ -19,15 +19,15 @@ export interface JsonApiSingleResponse extends JsonApiResponse {
   data: JsonApiDocument
 }
 export interface JsonApiDocument {
-  id: string,
-  type: string,
-  attributes: any,
+  id: string
+  type: string
+  attributes: any
   relationships: any | null
 }
 
 export interface ImageStyle {
-  url: string,
-  width: string,
+  url: string
+  width: string
   height: string
 }
 
@@ -38,9 +38,9 @@ export interface SpreeProductImage extends JsonApiDocument {
 }
 
 export interface ESImage {
-  image: string,
-  lab: string | null,
-  pos: number,
+  image: string
+  lab: string | null
+  pos: number
   typ: 'image'
 }
 
@@ -52,7 +52,7 @@ export interface PositionedDocument extends JsonApiDocument {
 
 export interface OptionValueDocument extends PositionedDocument {
   attributes: {
-    position: number,
+    position: number
     presentation: string
   }
 }
@@ -63,9 +63,9 @@ export interface ElasticOperation {
 
 export interface IndexOperation extends ElasticOperation {
   index: {
-    _index: string,
-    _type: string,
-    _id: string,
+    _index: string
+    _type: string
+    _id: string
     _body: any
   }
 }
@@ -76,26 +76,26 @@ export enum ESProductType {
 }
 
 export interface ShippingMethodsDescription {
-  orderToken: string,
+  orderToken: string
   deferred: Promise<any>
 }
 
 export interface ElasticSearchOptions {
-  bulkSize: number,
-  url: string,
-  index: string,
-  logLevel: string,
+  bulkSize: number
+  url: string
+  index: string
+  logLevel: string
   requestTimeout: number
 }
 
 export interface ElasticClient {
-  search: any,
+  search: any
   indices: any
 }
 
 export interface StoreConfiguration {
-  identifier: string,
-  elasticIndex: string,
+  identifier: string
+  elasticIndex: string
   spreeCurrency: string
 }
 
@@ -103,15 +103,15 @@ export interface GetPrice {
   (variant: JsonApiDocument, response: JsonApiResponse): number
 }
 
-export interface GetVariantPrice extends GetPrice { }
+export interface GetVariantPrice extends GetPrice {}
 
-export interface GetMasterVariantPrice extends GetPrice { }
+export interface GetMasterVariantPrice extends GetPrice {}
 
 export interface GetProductsListIncludes {
   (): string
 }
 
 export interface StoreCodeRequest extends Request {
-  multiStore: boolean,
+  multiStore: boolean
   storeConfiguration: StoreConfiguration
 }
