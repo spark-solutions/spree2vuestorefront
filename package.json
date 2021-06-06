@@ -3,8 +3,7 @@
   "version": "1.0.0",
   "main": "dist/index.js",
   "engines": {
-    "node": ">=8.15.0",
-    "yarn": ">=1.13.0"
+    "node": ">=16.3.0"
   },
   "scripts": {
     "build": "webpack",
