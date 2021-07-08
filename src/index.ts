@@ -1,7 +1,6 @@
-import Client from '@spree/storefront-api-v2-sdk/types/Client'
 import { ResultResponse } from '@spree/storefront-api-v2-sdk/types/interfaces/ResultResponse'
-import * as program from 'commander'
-import { config } from 'dotenv'
+import program from 'commander'
+import { config } from 'dotenv'
 import elasticsearch from 'elasticsearch'
 import { partial, _ } from 'lodash'
 import importers from './importers'
@@ -9,14 +8,7 @@ import * as singleCurrencyExtensionPoints from './importers/single-currency-exte
 import * as multiCurrencyExtensionPoints from './importers/multi-currency-extension-points'
 import { JsonApiListResponse, JsonApiResponse, ElasticClient, ElasticSearchOptions } from './interfaces'
 import server from './server'
-import {
-  elasticBulkDelete,
-  flushElastic,
-  logger,
-  mapPages,
-  pushElasticIndex,
-  pushElasticUpdate
-} from './utils'
+import { elasticBulkDelete, flushElastic, logger, mapPages, pushElasticIndex, pushElasticUpdate } from './utils'
 import {
   spreeOptions,
   paginationOptions,
@@ -29,15 +21,15 @@ import { MultiCurrencySpreeClient } from './utils/MultiCurrencySpreeClient'
 
 config()
 
-const getElasticClient = (storeElasticConfiguration: ElasticSearchOptions): ElasticClient => (
+const getElasticClient = (storeElasticConfiguration: ElasticSearchOptions): ElasticClient =>
   elasticsearch.Client({
     host: storeElasticConfiguration.url,
     log: storeElasticConfiguration.logLevel
   })
-)
 
 const createIndex = (storeElasticConfiguration: ElasticSearchOptions) => {
   const settings = {
+    'index.mapping.total_fields.limit': 5000,
     analysis: {
       analyzer: {
         ngram_analyzer: {
@@ -50,9 +42,7 @@ const createIndex = (storeElasticConfiguration: ElasticSearchOptions) => {
           type: 'ngram',
           min_gram: 2,
           max_gram: 8,
-          token_chars: [
-            'letter', 'digit'
-          ]
+          token_chars: ['letter', 'digit']
         }
       }
     }
@@ -101,10 +91,7 @@ const getElasticBulkOperations = (elasticClient: ElasticClient, elasticSearchOpt
 
   return {
     flush: () => {
-      pendingOperations = flushElastic(
-        elasticClient,
-        pendingOperations
-      )
+      pendingOperations = flushElastic(elasticClient, pendingOperations)
       return pendingOperations
     },
     pushIndex: (type, document) => {
@@ -133,11 +120,10 @@ const getElasticBulkOperations = (elasticClient: ElasticClient, elasticSearchOpt
   }
 }
 
-const getSpreeClient = () => (
+const getSpreeClient = () =>
   new MultiCurrencySpreeClient({
     host: spreeOptions.url
   })
-)
 
 const preconfigMapPages = (
   makePaginationRequest: (page: number, perPage: number) => Promise<ResultResponse<JsonApiListResponse>>,
@@ -148,93 +134,88 @@ const preconfigMapPages = (
   return mapPages(makePaginationRequest, resourceCallback, perPage, maxPages)
 }
 
-program.command('remove-everything')
-  .action(() => {
-    const storesConfigurations = getStoresConfiguration()
-    
-    if (storesConfigurations.length > 0) {
-      logger.info('Removing indices.')
+program.command('remove-everything').action(() => {
+  const storesConfigurations = getStoresConfiguration()
 
-      storesConfigurations.reduce((accumulated, currentStoreConfiguration) => {
-        const storeIdentifier = currentStoreConfiguration.identifier
+  if (storesConfigurations.length > 0) {
+    logger.info('Removing indices.')
 
-        const storeElasticConfiguration = getFullElasticSearchConfigForStore(
-          storesConfigurations,
-          storeIdentifier
-        )
-        
-        return accumulated.then(() => {
-          const index = storeElasticConfiguration.index
+    storesConfigurations.reduce((accumulated, currentStoreConfiguration) => {
+      const storeIdentifier = currentStoreConfiguration.identifier
 
-          return getElasticClient(storeElasticConfiguration).indices.delete({ index })
-            .then(() => {
-              logger.info(`Index ${index} removed.`)
-            })
-            .catch((error) => {
-              logger.error(['Error: Cannot remove index!', error])
-            })
-        })
-      }, Promise.resolve())
-    } else {
-      logger.info('Removing index.')
+      const storeElasticConfiguration = getFullElasticSearchConfigForStore(storesConfigurations, storeIdentifier)
 
-      const singleElasticSearchConfiguration = getSingleElasticSearchConfiguration()
-      const index = singleElasticSearchConfiguration.index
+      return accumulated.then(() => {
+        const index = storeElasticConfiguration.index
 
-      getElasticClient(singleElasticSearchConfiguration).indices.delete({ index })
-        .then(() => {
-          logger.info(`Index ${index} removed.`)
-        })
-        .catch((error) => {
-          logger.error(['Error: Cannot remove index!', error])
-        })
-      }
-  })
+        return getElasticClient(storeElasticConfiguration)
+          .indices.delete({ index })
+          .then(() => {
+            logger.info(`Index ${index} removed.`)
+          })
+          .catch((error) => {
+            logger.error(['Error: Cannot remove index!', error])
+          })
+      })
+    }, Promise.resolve())
+  } else {
+    logger.info('Removing index.')
 
-program.command('create-indices')
-  .action(() => {
-    const storesConfigurations = getStoresConfiguration()
+    const singleElasticSearchConfiguration = getSingleElasticSearchConfiguration()
+    const index = singleElasticSearchConfiguration.index
 
-    if (storesConfigurations.length > 0) {
-      logger.info('Creating indices.')
+    getElasticClient(singleElasticSearchConfiguration)
+      .indices.delete({ index })
+      .then(() => {
+        logger.info(`Index ${index} removed.`)
+      })
+      .catch((error) => {
+        logger.error(['Error: Cannot remove index!', error])
+      })
+  }
+})
 
-      storesConfigurations.reduce((accumulated, currentStoreConfiguration) => {
-        const storeIdentifier = currentStoreConfiguration.identifier
+program.command('create-indices').action(() => {
+  const storesConfigurations = getStoresConfiguration()
 
-        const storeElasticConfiguration = getFullElasticSearchConfigForStore(
-          storesConfigurations,
-          storeIdentifier
-        )
+  if (storesConfigurations.length > 0) {
+    logger.info('Creating indices.')
 
-        return accumulated.then(() => {
-          return createIndex(storeElasticConfiguration)
-            .then(() => {
-              logger.info(`Index ${storeElasticConfiguration.index} created.`)
-            })
-            .catch((error) => {
-              logger.error(['Error: Cannot create indices or set proper settings and mapping.', error])
-            })
-        })
-      }, Promise.resolve())
-    } else {
-      logger.info('Creating index.') 
+    storesConfigurations.reduce((accumulated, currentStoreConfiguration) => {
+      const storeIdentifier = currentStoreConfiguration.identifier
 
-      const singleElasticSearchConfiguration = getSingleElasticSearchConfiguration()
+      const storeElasticConfiguration = getFullElasticSearchConfigForStore(storesConfigurations, storeIdentifier)
 
-      createIndex(singleElasticSearchConfiguration)
-        .then(() => {
-          logger.info('Index created.')
-        })
-        .catch((error) => {
-          logger.error(['Error: Cannot create indices or set proper settings and mapping.', error])
-        })
-    }
-  })
+      return accumulated.then(() => {
+        return createIndex(storeElasticConfiguration)
+          .then(() => {
+            logger.info(`Index ${storeElasticConfiguration.index} created.`)
+          })
+          .catch((error) => {
+            logger.error(['Error: Cannot create indices or set proper settings and mapping.', error])
+          })
+      })
+    }, Promise.resolve())
+  } else {
+    logger.info('Creating index.')
 
-program.command('products')
+    const singleElasticSearchConfiguration = getSingleElasticSearchConfiguration()
+
+    createIndex(singleElasticSearchConfiguration)
+      .then(() => {
+        logger.info('Index created.')
+      })
+      .catch((error) => {
+        logger.error(['Error: Cannot create indices or set proper settings and mapping.', error])
+      })
+  }
+})
+
+program
+  .command('products')
   .option(
     '-d, --date [date]',
-    'Only replace products updated_at since this date (all products receive a new \'cursor\' anyway).'
+    "Only replace products updated_at since this date (all products receive a new 'cursor' anyway)."
   )
   .action((command) => {
     logger.info('Importing products and removing unused')
@@ -247,12 +228,12 @@ program.command('products')
       cursor = updatedSinceDate.getTime().toString()
       logger.info(
         `Replacing products with updated_at date greater than ${updatedSinceDate} (--date "${command.date}")` +
-        ` and setting cursor to ${cursor}.`
+          ` and setting cursor to ${cursor}.`
       )
       logger.warn(
         'The --date param is an optimization.' +
-        ' Make sure to provide a --date appropriate to the current Elastic Search state.' +
-        ' Avoid using too recent --date. If unsure when Elastic Search was updated last time - skip this param.'
+          ' Make sure to provide a --date appropriate to the current Elastic Search state.' +
+          ' Avoid using too recent --date. If unsure when Elastic Search was updated last time - skip this param.'
       )
     } else {
       updatedSinceDate = null
@@ -277,48 +258,37 @@ program.command('products')
     if (storesConfigurations.length > 0) {
       logger.info('Importing products from multiple stores.')
 
-      const {
-        getVariantPrice,
-        getMasterVariantPrice,
-        getProductsListIncludes
-      } = multiCurrencyExtensionPoints
+      const { getVariantPrice, getMasterVariantPrice, getProductsListIncludes } = multiCurrencyExtensionPoints
 
-      const importStoreProducts = partial(
-        importProducts,
-        _,
-        _,
-        _,
-        getProductsListIncludes
-      )
-  
-      storesConfigurations.reduce((accumulated, currentStoreConfiguration) => {
-        const storeIdentifier = currentStoreConfiguration.identifier
+      const importStoreProducts = partial(importProducts, _, _, _, getProductsListIncludes)
 
-        logger.info(`Importing store with identifier = ${storeIdentifier}. Full store configuration is ${JSON.stringify(currentStoreConfiguration)}.`)
-  
-        const storeElasticConfiguration = getFullElasticSearchConfigForStore(
-          storesConfigurations,
-          storeIdentifier
-        )
-        logger.info(`Elastic Search configuration for store is ${JSON.stringify(storeElasticConfiguration)}.`)
+      storesConfigurations
+        .reduce((accumulated, currentStoreConfiguration) => {
+          const storeIdentifier = currentStoreConfiguration.identifier
 
-        const storeCurrency = currentStoreConfiguration.spreeCurrency
+          logger.info(
+            `Importing store with identifier = ${storeIdentifier}. Full store configuration is ${JSON.stringify(
+              currentStoreConfiguration
+            )}.`
+          )
 
-        logger.info(`Currency for store is ${storeCurrency}.`)
-  
-        return accumulated.then(() => {
-          return importStoreProducts(
-            getElasticBulkOperations(
-              getElasticClient(storeElasticConfiguration),
-              storeElasticConfiguration
-            ),
-            partial(getVariantPrice, storeCurrency, _, _),
-            partial(getMasterVariantPrice, storeCurrency, _, _),
-          ).then(() => {
-            logger.info(`Products for store ${storeIdentifier} imported.`)
+          const storeElasticConfiguration = getFullElasticSearchConfigForStore(storesConfigurations, storeIdentifier)
+          logger.info(`Elastic Search configuration for store is ${JSON.stringify(storeElasticConfiguration)}.`)
+
+          const storeCurrency = currentStoreConfiguration.spreeCurrency
+
+          logger.info(`Currency for store is ${storeCurrency}.`)
+
+          return accumulated.then(() => {
+            return importStoreProducts(
+              getElasticBulkOperations(getElasticClient(storeElasticConfiguration), storeElasticConfiguration),
+              partial(getVariantPrice, storeCurrency, _, _),
+              partial(getMasterVariantPrice, storeCurrency, _, _)
+            ).then(() => {
+              logger.info(`Products for store ${storeIdentifier} imported.`)
+            })
           })
-        })
-      }, Promise.resolve())
+        }, Promise.resolve())
         .then(() => {
           logger.info('All products for all stores imported.')
         })
@@ -332,17 +302,10 @@ program.command('products')
 
       logger.info(`Elastic Search configuration for store is ${JSON.stringify(singleElasticSearchConfiguration)}.`)
 
-      const {
-        getVariantPrice,
-        getMasterVariantPrice,
-        getProductsListIncludes
-      } = singleCurrencyExtensionPoints
+      const { getVariantPrice, getMasterVariantPrice, getProductsListIncludes } = singleCurrencyExtensionPoints
 
       const importSingleProducts = importProducts(
-        getElasticBulkOperations(
-          getElasticClient(singleElasticSearchConfiguration),
-          singleElasticSearchConfiguration
-        ),
+        getElasticBulkOperations(getElasticClient(singleElasticSearchConfiguration), singleElasticSearchConfiguration),
         getVariantPrice,
         getMasterVariantPrice,
         getProductsListIncludes
@@ -358,10 +321,11 @@ program.command('products')
     }
   })
 
-program.command('categories')
+program
+  .command('categories')
   .option(
     '-d, --date [date]',
-    'Only replace categories updated_at since this date (all categories receive a new \'cursor\' anyway).'
+    "Only replace categories updated_at since this date (all categories receive a new 'cursor' anyway)."
   )
   .action((command) => {
     logger.info('Importing categories')
@@ -373,12 +337,12 @@ program.command('categories')
       cursor = updatedSinceDate.getTime().toString()
       logger.info(
         `Replacing categories with updated_at date greater than ${updatedSinceDate} (--date "${command.date}")` +
-        ` and setting cursor to ${cursor}.`
+          ` and setting cursor to ${cursor}.`
       )
       logger.warn(
         'The --date param is an optimization.' +
-        ' Make sure to provide a --date appropriate to the current Elastic Search state.' +
-        ' Avoid using too recent --date. If unsure when Elastic Search was updated last time - skip this param.'
+          ' Make sure to provide a --date appropriate to the current Elastic Search state.' +
+          ' Avoid using too recent --date. If unsure when Elastic Search was updated last time - skip this param.'
       )
     } else {
       updatedSinceDate = null
@@ -400,39 +364,38 @@ program.command('categories')
     if (storesConfigurations.length > 0) {
       logger.info('Importing categories from multiple stores.')
 
-      storesConfigurations.reduce((accumulated, currentStoreConfiguration) => {
-        const storeIdentifier = currentStoreConfiguration.identifier
+      storesConfigurations
+        .reduce((accumulated, currentStoreConfiguration) => {
+          const storeIdentifier = currentStoreConfiguration.identifier
 
-        logger.info(`Importing store with identifier = ${storeIdentifier}. Full store configuration is ${JSON.stringify(currentStoreConfiguration)}.`)
+          logger.info(
+            `Importing store with identifier = ${storeIdentifier}. Full store configuration is ${JSON.stringify(
+              currentStoreConfiguration
+            )}.`
+          )
 
-        const storeElasticConfiguration = getFullElasticSearchConfigForStore(
-          storesConfigurations,
-          storeIdentifier
-        )
+          const storeElasticConfiguration = getFullElasticSearchConfigForStore(storesConfigurations, storeIdentifier)
 
-        logger.info(`Elastic Search configuration for store is ${JSON.stringify(storeElasticConfiguration)}.`)
+          logger.info(`Elastic Search configuration for store is ${JSON.stringify(storeElasticConfiguration)}.`)
 
-        const storeCurrency = currentStoreConfiguration.spreeCurrency
+          const storeCurrency = currentStoreConfiguration.spreeCurrency
 
-        logger.info(`Currency for store is ${storeCurrency}.`)
+          logger.info(`Currency for store is ${storeCurrency}.`)
 
-        return accumulated.then(() => {
-          return importCategories(
-            getElasticBulkOperations(
-              getElasticClient(storeElasticConfiguration),
-              storeElasticConfiguration
-            )
-          ).then(() => {
-            logger.info(`Categories for store ${storeIdentifier} imported.`)
+          return accumulated.then(() => {
+            return importCategories(
+              getElasticBulkOperations(getElasticClient(storeElasticConfiguration), storeElasticConfiguration)
+            ).then(() => {
+              logger.info(`Categories for store ${storeIdentifier} imported.`)
+            })
           })
+        }, Promise.resolve())
+        .then(() => {
+          logger.info('All categories for all stores imported.')
         })
-      }, Promise.resolve())
-      .then(() => {
-        logger.info('All categories for all stores imported.')
-      })
-      .catch(() => {
-        process.exit(1)
-      })
+        .catch(() => {
+          process.exit(1)
+        })
     } else {
       logger.info('Importing categories for a single store configuration.')
 
@@ -441,10 +404,7 @@ program.command('categories')
       logger.info(`Elastic Search configuration for store is ${JSON.stringify(singleElasticSearchConfiguration)}.`)
 
       const importSingleCategories = importCategories(
-        getElasticBulkOperations(
-          getElasticClient(singleElasticSearchConfiguration),
-          singleElasticSearchConfiguration
-        )
+        getElasticBulkOperations(getElasticClient(singleElasticSearchConfiguration), singleElasticSearchConfiguration)
       )
 
       importSingleCategories
@@ -457,27 +417,27 @@ program.command('categories')
     }
   })
 
-program.command('product [ids...]')
-  .action((ids: string[]) => {
-    if (ids.length === 0) {
-      logger.error('at least one id required')
+program.command('product [ids...]').action((ids: string[]) => {
+  if (ids.length === 0) {
+    logger.error('at least one id required')
 
-      process.exit(1)
-    }
+    process.exit(1)
+  }
 
-    const storesConfigurations = getStoresConfiguration()
+  const storesConfigurations = getStoresConfiguration()
 
-    if (storesConfigurations.length > 0) {
-      storesConfigurations.reduce((accumulated, currentStoreConfiguration) => {
-
+  if (storesConfigurations.length > 0) {
+    storesConfigurations
+      .reduce((accumulated, currentStoreConfiguration) => {
         const storeIdentifier = currentStoreConfiguration.identifier
 
-        logger.info(`Importing store with identifier = ${storeIdentifier}. Full store configuration is ${JSON.stringify(currentStoreConfiguration)}.`)
-
-        const storeElasticConfiguration = getFullElasticSearchConfigForStore(
-          storesConfigurations,
-          storeIdentifier
+        logger.info(
+          `Importing store with identifier = ${storeIdentifier}. Full store configuration is ${JSON.stringify(
+            currentStoreConfiguration
+          )}.`
         )
+
+        const storeElasticConfiguration = getFullElasticSearchConfigForStore(storesConfigurations, storeIdentifier)
 
         logger.info(`Elastic Search configuration for store is ${JSON.stringify(storeElasticConfiguration)}.`)
 
@@ -485,32 +445,34 @@ program.command('product [ids...]')
 
         logger.info(`Currency for store is ${storeCurrency}.`)
 
-        return accumulated.then(() => {
-          return getElasticClient(storeElasticConfiguration).search({
-            body: {
-              query: {
-                terms: {
-                  id: ids
+        return accumulated
+          .then(() => {
+            return getElasticClient(storeElasticConfiguration).search({
+              body: {
+                query: {
+                  terms: {
+                    id: ids
+                  }
                 }
-              }
-            },
-            index: storeElasticConfiguration.index,
-            type: 'product'
+              },
+              index: storeElasticConfiguration.index,
+              type: 'product'
+            })
           })
-        })
-        .then((products: any) => {
-          logger.info(products.hits.hits)
-        })
+          .then((products: any) => {
+            logger.info(products.hits.hits)
+          })
       }, Promise.resolve())
       .catch(() => {
         process.exit(1)
       })
-    } else {
-      const singleElasticSearchConfiguration = getSingleElasticSearchConfiguration()
+  } else {
+    const singleElasticSearchConfiguration = getSingleElasticSearchConfiguration()
 
-      logger.info(`Elastic Search configuration for store is ${JSON.stringify(singleElasticSearchConfiguration)}.`)
+    logger.info(`Elastic Search configuration for store is ${JSON.stringify(singleElasticSearchConfiguration)}.`)
 
-      getElasticClient(singleElasticSearchConfiguration).search({
+    getElasticClient(singleElasticSearchConfiguration)
+      .search({
         body: {
           query: {
             terms: {
@@ -527,20 +489,18 @@ program.command('product [ids...]')
       .catch(() => {
         process.exit(1)
       })
-    }
-  })
+  }
+})
 
-program.command('api-server')
-  .action(() => {
-    logger.info('Starting API server')
+program.command('api-server').action(() => {
+  logger.info('Starting API server')
 
-    server(getSpreeClient(), serverOptions)
-  })
+  server(getSpreeClient(), serverOptions)
+})
 
 program.on('command:*', () => {
   logger.error('Invalid command: %s\nSee --help for a list of available commands.', program.args.join(' '))
   process.exit(1)
 })
 
-program
-  .parse(process.argv)
+program.parse(process.argv)

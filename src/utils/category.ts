@@ -8,19 +8,17 @@ const getCategories = (spreeClient: Client, preconfigMapPages): Promise<JsonApiD
   const categories: JsonApiDocument[] = []
 
   return preconfigMapPages(
-    (page: number, perPage: number) => (
+    (page: number, perPage: number) =>
       spreeClient.taxons.list({
         page,
         per_page: perPage
-      })
-    ),
+      }),
     (response: JsonApiResponse) => {
       categories.push(response.data as JsonApiDocument)
     }
-  )
-    .then(() => {
-      return categories
-    })
+  ).then(() => {
+    return categories
+  })
 }
 
 /**
@@ -42,7 +40,4 @@ const getCategoriesOnPath = (categories: JsonApiDocument[], leafCategoriesIds: s
   return categoriesOnPath
 }
 
-export {
-  getCategories,
-  getCategoriesOnPath
-}
+export { getCategories, getCategoriesOnPath }

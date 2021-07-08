@@ -12,12 +12,14 @@ const generateOptionAttributeCode = (attributeIdentifier) => `${productOptionAtt
 const generateCustomAttributeCode = (attributeIdentifier) => `${productCustomAttributesPrefix}${attributeIdentifier}`
 
 const findOptionTypeFromOptionValue = (optionTypes: any[], optionValueId): any | null => {
-  return optionTypes.find((optionType) => {
-    const optionValues = optionType.relationships.option_values.data
-    return !!optionValues.find((optionValue: { id: string }) => {
-      return optionValue.id === optionValueId
-    })
-  }) || null
+  return (
+    optionTypes.find((optionType) => {
+      const optionValues = optionType.relationships.option_values.data
+      return !!optionValues.find((optionValue: { id: string }) => {
+        return optionValue.id === optionValueId
+      })
+    }) || null
+  )
 }
 
 const getLineItem = (response: JsonApiResponse, lineItem: JsonApiDocument, cartId: string) => {
@@ -30,14 +32,15 @@ const getLineItem = (response: JsonApiResponse, lineItem: JsonApiDocument, cartI
   const productVariants = findIncludedOfType(response, product, 'variants')
 
   const productOption: any = {}
-  if (productVariants.length > 0) {// TODO: also check if there are options
+  if (productVariants.length > 0) {
+    // TODO: also check if there are options
     const configurableItemOptions = variant.relationships.option_values.data.map((ov) => {
-        const optionType = findOptionTypeFromOptionValue(optionTypes, ov.id)
+      const optionType = findOptionTypeFromOptionValue(optionTypes, ov.id)
 
-        return {
-          option_id: generateOptionAttributeCode(optionType.id),
-          option_value: ov.id
-        }
+      return {
+        option_id: generateOptionAttributeCode(optionType.id),
+        option_value: ov.id
+      }
     })
     // TODO: productOption.extension_attributes can probably be removed when setConfigurableProductOptions: false in VS
     // config. Try to remove.
@@ -61,14 +64,15 @@ const getLineItem = (response: JsonApiResponse, lineItem: JsonApiDocument, cartI
 }
 
 const variantFromSku = (spreeClient: Client, sku: string): Promise<JsonApiSingleResponse | null> => {
-  return spreeClient.products.list({
-    filter: {
-      skus: sku
-    },
-    include: 'default_variant,variants',
-    page: 1,
-    per_page: 1
-  })
+  return spreeClient.products
+    .list({
+      filter: {
+        skus: sku
+      },
+      include: 'default_variant,variants',
+      page: 1,
+      per_page: 1
+    })
     .then((response) => {
       if (response.isSuccess()) {
         const products: IProducts = response.success()

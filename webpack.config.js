@@ -8,18 +8,10 @@ const ProgressBar = require('./webpack-plugins/ProgressBar')
 
 module.exports = {
   context: baseDirectoryPath,
-  plugins: [
-    new ProgressBar(),
-    new webpack.BannerPlugin({ banner: '#!/usr/bin/env node', raw: true })
-  ],
-  externals: [
-    nodeExternals()
-  ],
+  plugins: [new ProgressBar(), new webpack.BannerPlugin({ banner: '#!/usr/bin/env node', raw: true })],
+  externals: [nodeExternals()],
   entry: {
-    index: [
-      resolve(baseDirectoryPath, 'load-sourcemaps.js'),
-      resolve(srcDirectoryPath, 'index.ts')
-    ]
+    index: [resolve(baseDirectoryPath, 'load-sourcemaps.js'), resolve(srcDirectoryPath, 'index.ts')]
   },
   target: 'node',
   output: {
@@ -46,19 +38,14 @@ module.exports = {
       },
       {
         test: /\.js$/,
-        use: [
-          'source-map-loader'
-        ],
+        use: ['source-map-loader'],
         include: /node_modules/,
         enforce: 'pre'
       }
     ]
   },
   resolveLoader: {
-    modules: [
-      srcDirectoryPath,
-      'node_modules'
-    ]
+    modules: [srcDirectoryPath, 'node_modules']
   },
   resolve: {
     symlinks: false,
