@@ -1,4 +1,10 @@
-# Spree 2 Vue Storefront
+# ⚠️ Deprecation notice ⚠️
+
+This is an old integration for Vue Storefront 1. 
+
+Please go to https://github.com/upsidelab/vue-storefront-spree for up-to-date Vue Storefront 2 integration
+
+# Spree Vue Storefront
 
 ![spree2vs hero image](./readme-assets/github-spree_vue_storefront_pwa.png)
 
