@@ -1,4 +1,4 @@
-import { StoreConfiguration, ElasticSearchOptions } from "../interfaces"
+import { StoreConfiguration, ElasticSearchOptions } from '../interfaces'
 
 export const spreeOptions = {
   url: process.env.SPREE_URL,

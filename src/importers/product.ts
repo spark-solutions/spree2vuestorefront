@@ -27,8 +27,12 @@ import {
 import { FatalError } from '../utils/errors'
 
 const sortyByPositionAttribute = (a: PositionedDocument, b: PositionedDocument) => {
-  if (a.attributes.position > b.attributes.position) { return 1 }
-  if (a.attributes.position < b.attributes.position) { return -1 }
+  if (a.attributes.position > b.attributes.position) {
+    return 1
+  }
+  if (a.attributes.position < b.attributes.position) {
+    return -1
+  }
   return 0
 }
 
@@ -50,13 +54,12 @@ const importProducts = (
       logger.info('Categories fetched. Importing products.')
 
       return preconfigMapPages(
-        (page: number, perPage: number) => (
+        (page: number, perPage: number) =>
           spreeClient.products.list({
             include: getProductsListIncludes(),
             page,
             per_page: perPage
-          })
-        ),
+          }),
         (response: JsonApiResponse) => {
           const product = response.data as JsonApiDocument
 
@@ -91,8 +94,8 @@ const importProducts = (
                 return acc
               }, {})
 
-              const variantMediaGallery = getMediaGallery(variantImages as SpreeProductImage[])
-                .reduce((accumulatedImages, { image }, variantIndex) => {
+              const variantMediaGallery = getMediaGallery(variantImages as SpreeProductImage[]).reduce(
+                (accumulatedImages, { image }, variantIndex) => {
                   if (variantIndex === 0) {
                     return accumulatedImages
                   }
@@ -123,30 +126,28 @@ const importProducts = (
               }
             })
 
-            const configurableOptions = optionTypes
-              .sort(sortyByPositionAttribute)
-              .map((optionType) => {
-                return {
-                  attribute_code: generateOptionAttributeCode(optionType.id),
-                  attribute_name: optionType.attributes.name,
-                  // attribute_id - only required when setConfigurableProductOptions: true, should equal attribute_code
-                  label: optionType.attributes.presentation,
-                  values: optionType.relationships.option_values.data
-                    .map((optionValue: { id: string }) => {
-                      // Some option values may not be provided when fetching a product - those which aren't used by the
-                      // product. Don't save them in ES for the product.
-                      return findIncluded(response, 'option_value', optionValue.id)
-                    })
-                    .filter((maybeOptionValueObj: OptionValueDocument | undefined): boolean => !!maybeOptionValueObj)
-                    .sort(sortyByPositionAttribute)
-                    .map((optionValueObj: OptionValueDocument) => {
-                      return {
-                        label: optionValueObj.attributes.presentation,
-                        value_index: optionValueObj.id
-                      }
-                    })
-                }
-              })
+            const configurableOptions = optionTypes.sort(sortyByPositionAttribute).map((optionType) => {
+              return {
+                attribute_code: generateOptionAttributeCode(optionType.id),
+                attribute_name: optionType.attributes.name,
+                // attribute_id - only required when setConfigurableProductOptions: true, should equal attribute_code
+                label: optionType.attributes.presentation,
+                values: optionType.relationships.option_values.data
+                  .map((optionValue: { id: string }) => {
+                    // Some option values may not be provided when fetching a product - those which aren't used by the
+                    // product. Don't save them in ES for the product.
+                    return findIncluded(response, 'option_value', optionValue.id)
+                  })
+                  .filter((maybeOptionValueObj: OptionValueDocument | undefined): boolean => !!maybeOptionValueObj)
+                  .sort(sortyByPositionAttribute)
+                  .map((optionValueObj: OptionValueDocument) => {
+                    return {
+                      label: optionValueObj.attributes.presentation,
+                      value_index: optionValueObj.id
+                    }
+                  })
+              }
+            })
 
             const filterObject = {}
 
@@ -163,18 +164,19 @@ const importProducts = (
             })
 
             const price = getMasterVariantPrice(defaultVariant, response)
-            const productCategories = getCategoriesOnPath(categories, relationships.taxons.data.map(({ id }) => id))
+            const productCategories = getCategoriesOnPath(
+              categories,
+              relationships.taxons.data.map(({ id }) => id)
+            )
 
             const esProduct = {
               // category - used for product lists (query.newProducts in config),
               // such as default "Everything new" on homepage when filterFieldMapping has
               // "category.name": "category.name.keyword" and for limiting search to category.
-              category: productCategories.map((category) => (
-                {
-                  category_id: +category.id,
-                  name: category.attributes.name
-                }
-              )),
+              category: productCategories.map((category) => ({
+                category_id: +category.id,
+                name: category.attributes.name
+              })),
               ...filterObject,
               category_ids: productCategories.map((category) => +category.id),
               configurable_children: variants,
@@ -182,13 +184,13 @@ const importProducts = (
               // created_at - Spree doesn't return created date, use available_on as replacement
               created_at: product.attributes.available_on,
               cursor,
-              description: defaultVariant.attributes.description,
+              description: product.attributes.description,
               final_price: price, // 'final_price' field is used when filtering products in a category
               has_options: hasOptions, // easy way of checking if variants have selectable options
               id: +product.id,
               image: getImageUrl(images[0] as SpreeProductImage, 800, 800) || '',
               media_gallery: images.length > 0 ? mediaGallery : null,
-              name: defaultVariant.attributes.name,
+              name: product.attributes.name,
               news_from_date: null, // start date for when product is "in the news" (featured)
               news_to_date: null, // end date for when product is "in the news" (featured)
               price,
@@ -263,21 +265,23 @@ const importProducts = (
       )
     })
     .then(() => {
-      logger.info(`Products' cursor updates requested: ${updates}.` +
-        ` Products' content updates requested: ${replacements}.`)
+      logger.info(
+        `Products' cursor updates requested: ${updates}.` + ` Products' content updates requested: ${replacements}.`
+      )
 
-      return elasticBulkOperations.flush()
+      return elasticBulkOperations
+        .flush()
         .then(({ errors }) => {
           if (errors.length > 0) {
             logger.error(['Some or all ES operations failed.', errors])
-            const probablyUpdatedSinceDateWrong = errors.some((error) => (
-              'update' in error && error.update.status === 404
-            ))
+            const probablyUpdatedSinceDateWrong = errors.some(
+              (error) => 'update' in error && error.update.status === 404
+            )
             if (probablyUpdatedSinceDateWrong) {
               logger.warn(
                 'Tried updating non-existent products in Elastic Search.' +
-                ` Are you sure updatedSinceDate (= ${updatedSinceDate}) is appropriate?` +
-                ' Try updatedSinceDate = null instead.'
+                  ` Are you sure updatedSinceDate (= ${updatedSinceDate}) is appropriate?` +
+                  ' Try updatedSinceDate = null instead.'
               )
             }
             throw new FatalError('Products import failed.')
@@ -294,10 +298,12 @@ const importProducts = (
           logger.info(`Removed ${elasticResponse.total} unused products.`)
         })
     })
-    .catch(passFatal((error) => {
-      logger.error(['Could not fully process products.', error])
-      throw new FatalError('Products import failed.')
-    }))
+    .catch(
+      passFatal((error) => {
+        logger.error(['Could not fully process products.', error])
+        throw new FatalError('Products import failed.')
+      })
+    )
 }
 
 export default importProducts

@@ -94,10 +94,10 @@ Steps:
 
 1. Add `127.0.0.1 host.docker.internal` to `/etc/hosts`.
 1. Install NPM modules: `./bin/exec yarn install`.
-1. Start a Webpack task which continuously rebuilds the project from source: `./bin/exec yarn watch`.
-1. Setup Elastic Search to accept Spree records: `./bin/exec yarn create-indices`.
-1. Import products, categories and attributes from Spree to the ES catalog: `./bin/exec yarn import:all`. In production mode, this script runs as a cron job at set intervals.
-1. Run a Node server which allows order management in Spree by calling spree2vs endpoints: `./bin/exec yarn server`.
+1. Start a Webpack task which continuously rebuilds the project from source: `./bin/exec yarn run watch`.
+1. Setup Elastic Search to accept Spree records: `./bin/exec yarn run create-indices`.
+1. Import products, categories and attributes from Spree to the ES catalog: `./bin/exec yarn run import`. In production mode, this script runs as a cron job at set intervals.
+1. Run a Node server which allows order management in Spree by calling spree2vs endpoints: `./bin/exec yarn run server`.
 
 To remove the entire Elastic Search database: `./bin/exec yarn remove-everything`.
 

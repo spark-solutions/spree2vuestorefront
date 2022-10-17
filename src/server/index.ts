@@ -1,4 +1,4 @@
-import { errors, Result } from '@spree/storefront-api-v2-sdk'
+import { errors, result } from '@spree/storefront-api-v2-sdk'
 import { SpreeSDKError } from '@spree/storefront-api-v2-sdk/types/errors'
 import { NestedAttributes } from '@spree/storefront-api-v2-sdk/types/interfaces/endpoints/CheckoutClass'
 import { JsonApiResponse } from '@spree/storefront-api-v2-sdk/types/interfaces/JsonApi'
@@ -8,26 +8,20 @@ import { Result as ResultType } from '@spree/storefront-api-v2-sdk/types/interfa
 import { ResultResponse } from '@spree/storefront-api-v2-sdk/types/interfaces/ResultResponse'
 import { IShippingMethodsResult } from '@spree/storefront-api-v2-sdk/types/interfaces/ShippingMethod'
 import { IToken } from '@spree/storefront-api-v2-sdk/types/interfaces/Token'
+import bodyParser from 'body-parser'
 import cors from 'cors'
-import * as express from 'express'
+import express from 'express'
 import { JsonApiSingleResponse, ShippingMethodsDescription, StoreConfiguration, StoreCodeRequest } from '../interfaces'
-import {
-  findIncluded,
-  findIncludedOfType,
-  getLineItem,
-  getTokenOptions,
-  logger,
-  variantFromSku
-} from '../utils'
+import { findIncluded, findIncludedOfType, getLineItem, getTokenOptions, logger, variantFromSku } from '../utils'
 import { MultiCurrencySpreeClient } from '../utils/MultiCurrencySpreeClient'
 import { storeCode, createEnsureStore } from './middlewares/multiStore'
 
 export default (spreeClient: MultiCurrencySpreeClient, serverOptions: any) => {
   type MaybePromiseResult = Promise<ResultResponse<JsonApiResponse>> | ResultResponse<JsonApiResponse>
 
-  class ShippingMethodMissingError extends Error { }
+  class ShippingMethodMissingError extends Error {}
 
-  const getTotals = (tokenOptions, cartId): (Promise<ResultType<any, any>>) => {
+  const getTotals = (tokenOptions, cartId): Promise<ResultType<any, any>> => {
     const extraParams = {
       include: [
         'line_items',
@@ -37,55 +31,62 @@ export default (spreeClient: MultiCurrencySpreeClient, serverOptions: any) => {
       ].join(',')
     }
 
-    return spreeClient.cart.show(tokenOptions, extraParams)
-      .then((spreeResponse) => {
-        if (spreeResponse.isSuccess()) {
-          const successResponse: any = spreeResponse.success()
-          const resultAttr: any = successResponse.data.attributes
-          const lineItems = findIncludedOfType(successResponse, successResponse.data, 'line_items')
-          const items = lineItems.map((lineItem) => {
-            return getLineItem(successResponse, lineItem, cartId)
-          })
+    return spreeClient.cart.show(tokenOptions, extraParams).then((spreeResponse) => {
+      if (spreeResponse.isSuccess()) {
+        const successResponse: any = spreeResponse.success()
+        const resultAttr: any = successResponse.data.attributes
+        const lineItems = findIncludedOfType(successResponse, successResponse.data, 'line_items')
+        const items = lineItems.map((lineItem) => {
+          return getLineItem(successResponse, lineItem, cartId)
+        })
 
-          const totalSegments = [{
-            code: 'subtotal', title: 'Subtotal', value: resultAttr.item_total
-          }, {
-            code: 'shipping', title: 'Shipping', value: resultAttr.ship_total
-          }, {
-            code: 'grand_total', title: 'Grand Total', value: resultAttr.total
-          }]
-
-          if (parseFloat(resultAttr.promo_total) !== 0) {
-            totalSegments.push({ code: 'discount', title: 'Discount', value: resultAttr.promo_total })
+        const totalSegments = [
+          {
+            code: 'subtotal',
+            title: 'Subtotal',
+            value: resultAttr.item_total
+          },
+          {
+            code: 'shipping',
+            title: 'Shipping',
+            value: resultAttr.ship_total
+          },
+          {
+            code: 'grand_total',
+            title: 'Grand Total',
+            value: resultAttr.total
           }
+        ]
 
-          if (parseFloat(resultAttr.tax_total) !== 0 && parseFloat(resultAttr.included_tax_total) === 0) {
-            totalSegments.push({ code: 'tax', title: 'Tax', value: resultAttr.tax_total })
-          } else if (parseFloat(resultAttr.included_tax_total) !== 0) {
-            totalSegments.push({ code: 'tax', title: 'Included Tax', value: resultAttr.included_tax_total })
-          }
-
-          const result = {
-            coupon_code: parseFloat(resultAttr.promo_total) !== 0 ? '42' : '',
-            discount_amount: resultAttr.promo_total,
-            grand_total: resultAttr.total,
-            items_qty: resultAttr.items_qty,
-            shipping_amount: resultAttr.ship_total,
-            subtotal: resultAttr.item_total,
-            tax_amount: resultAttr.tax_total,
-            total_segments: totalSegments,
-            items
-          }
-          return Result.success(result)
-        } else {
-          return spreeResponse
+        if (parseFloat(resultAttr.promo_total) !== 0) {
+          totalSegments.push({ code: 'discount', title: 'Discount', value: resultAttr.promo_total })
         }
-      })
+
+        if (parseFloat(resultAttr.tax_total) !== 0 && parseFloat(resultAttr.included_tax_total) === 0) {
+          totalSegments.push({ code: 'tax', title: 'Tax', value: resultAttr.tax_total })
+        } else if (parseFloat(resultAttr.included_tax_total) !== 0) {
+          totalSegments.push({ code: 'tax', title: 'Included Tax', value: resultAttr.included_tax_total })
+        }
+
+        const resultValue = {
+          coupon_code: parseFloat(resultAttr.promo_total) !== 0 ? '42' : '',
+          discount_amount: resultAttr.promo_total,
+          grand_total: resultAttr.total,
+          items_qty: resultAttr.items_qty,
+          shipping_amount: resultAttr.ship_total,
+          subtotal: resultAttr.item_total,
+          tax_amount: resultAttr.tax_total,
+          total_segments: totalSegments,
+          items
+        }
+        return result.makeSuccess(resultValue)
+      } else {
+        return spreeResponse
+      }
+    })
   }
 
-  const generateStorefrontShippingMethods = (
-    shippingRates: any[]
-  ) => {
+  const generateStorefrontShippingMethods = (shippingRates: any[]) => {
     // TODO: Rename Spree SDK's EstimatedShippingMethodAttr to ShippingMethod. It's used in shipping rates and estimated
     // shipping rates endpoints.
     const shippingMethods = shippingRates.map((shippingRate) => {
@@ -135,7 +136,7 @@ export default (spreeClient: MultiCurrencySpreeClient, serverOptions: any) => {
             payment_source: {
               [paymentMethodCode]: {
                 name: `${billingAddress.firstname} ${billingAddress.lastname}`,
-                ...paymentMethodAdditional,
+                ...paymentMethodAdditional
               }
             }
           }
@@ -226,9 +227,7 @@ export default (spreeClient: MultiCurrencySpreeClient, serverOptions: any) => {
     })
 
     if (lastDescription) {
-      logger.info(
-        `Order with order token id = ${token.orderToken} already has shipping methods calls waiting.`
-      )
+      logger.info(`Order with order token id = ${token.orderToken} already has shipping methods calls waiting.`)
       const updatedShippingMethodsDeferred = lastDescription.deferred
         .then(shippingMethodsCallGenerator)
         .catch(shippingMethodsCallGenerator)
@@ -251,59 +250,59 @@ export default (spreeClient: MultiCurrencySpreeClient, serverOptions: any) => {
   }
 
   const updateShippingMethod = (token: IToken, shippingRateId: string) => {
-    return adjustLastShippingMethodsCallForOrder(
-      token,
-      () => {
-        return spreeClient.checkout.shippingMethods(token, { include: 'shipping_rates' })
-      }
-    )
-      .then((shippingResponse): MaybePromiseResult => {
-        if (shippingResponse.isSuccess()) {
-          logger.info(`Shipping rates fetched for order with order token = ${token.orderToken}.`)
-          const shipments = shippingResponse.success().data
-          if (shipments.length > 0) {
-            logger.info('At least one shipment choice available for order.')
-            logger.info(`Searching for shipment with shipping method id = ${shippingRateId}.`)
-            const pickedShipment = shipments[0]
-            const shippingRates = pickedShipment.relationships.shipping_rates.data as RelationType[]
-            const shippingRate = shippingRates.find((element) => {
-              return shippingRateId ===
-                findIncluded(
-                  shippingResponse.success(), element.type, element.id
-                ).attributes.shipping_method_id.toString()
-            })
-            if (typeof shippingRate !== 'undefined') {
-              logger.info(`Found match for chosen shipping method with id = ${shippingRateId} in Spree.`)
-              const shippingOrderInformation = {
-                order: {
-                  shipments_attributes: [
-                    {
-                      id: parseInt(pickedShipment.id, 10),
-                      selected_shipping_rate_id: parseInt(shippingRate.id, 10)
-                    }
-                  ]
-                }
+    return adjustLastShippingMethodsCallForOrder(token, () => {
+      return spreeClient.checkout.shippingMethods(token, { include: 'shipping_rates' })
+    }).then((shippingResponse): MaybePromiseResult => {
+      if (shippingResponse.isSuccess()) {
+        logger.info(`Shipping rates fetched for order with order token = ${token.orderToken}.`)
+        const shipments = shippingResponse.success().data
+        if (shipments.length > 0) {
+          logger.info('At least one shipment choice available for order.')
+          logger.info(`Searching for shipment with shipping method id = ${shippingRateId}.`)
+          const pickedShipment = shipments[0]
+          const shippingRates = pickedShipment.relationships.shipping_rates.data as RelationType[]
+          const shippingRate = shippingRates.find((element) => {
+            return (
+              shippingRateId ===
+              findIncluded(
+                shippingResponse.success(),
+                element.type,
+                element.id
+              ).attributes.shipping_method_id.toString()
+            )
+          })
+          if (typeof shippingRate !== 'undefined') {
+            logger.info(`Found match for chosen shipping method with id = ${shippingRateId} in Spree.`)
+            const shippingOrderInformation = {
+              order: {
+                shipments_attributes: [
+                  {
+                    id: pickedShipment.id,
+                    selected_shipping_rate_id: shippingRate.id
+                  }
+                ]
               }
-              logger.info('Updating shipping method for order in Spree.')
-              return spreeClient.checkout.orderUpdate(token, shippingOrderInformation)
-            } else {
-              logger.info(`Shipping method with id = ${shippingRateId} not found for order token ${token.orderToken}.`)
             }
+            logger.info('Updating shipping method for order in Spree.')
+            return spreeClient.checkout.orderUpdate(token, shippingOrderInformation)
           } else {
-            logger.info('No shipment choices available for order.')
+            logger.info(`Shipping method with id = ${shippingRateId} not found for order token ${token.orderToken}.`)
           }
-          return Result.fail(new ShippingMethodMissingError('Estimated shipping method is not available.'))
         } else {
-          logger.error(['Shipping rates could not be fetched.', shippingResponse.fail()])
-          return shippingResponse
+          logger.info('No shipment choices available for order.')
         }
-      })
+        return result.makeFail(new ShippingMethodMissingError('Estimated shipping method is not available.'))
+      } else {
+        logger.error(['Shipping rates could not be fetched.', shippingResponse.fail()])
+        return shippingResponse
+      }
+    })
   }
 
   const app = express()
 
   app.use(cors())
-  app.use(express.json())
+  app.use(bodyParser.json())
   app.use(storeCode)
 
   const ensureStore = createEnsureStore(spreeClient)
@@ -316,36 +315,38 @@ export default (spreeClient: MultiCurrencySpreeClient, serverOptions: any) => {
     if (request.multiStore) {
       const storeConfiguration: StoreConfiguration = request.storeConfiguration
 
-      createCartRequest = spreeClient.currency.createCartWithCurrency(undefined, { currency: storeConfiguration.spreeCurrency })
+      createCartRequest = spreeClient.currency.createCartWithCurrency(undefined, {
+        currency: storeConfiguration.spreeCurrency
+      })
     } else {
       createCartRequest = spreeClient.cart.create()
     }
 
-    createCartRequest
-      .then((spreeResponse) => {
-        if (spreeResponse.isSuccess()) {
-          logger.info('New token for guest user fetched.')
+    createCartRequest.then((spreeResponse) => {
+      if (spreeResponse.isSuccess()) {
+        logger.info('New token for guest user fetched.')
 
-          const spreeToken = spreeResponse.success().data.attributes.token
-          response.json({
-            code: 200,
-            result: spreeToken
-          })
-        } else {
-          logger.error(['Could not create a new cart.', spreeResponse.fail()])
+        const spreeToken = spreeResponse.success().data.attributes.token
+        response.json({
+          code: 200,
+          result: spreeToken
+        })
+      } else {
+        logger.error(['Could not create a new cart.', spreeResponse.fail()])
 
-          response.statusCode = 500
-          response.json({
-            code: 500,
-            result: null
-          })
-        }
-      })
+        response.statusCode = 500
+        response.json({
+          code: 500,
+          result: null
+        })
+      }
+    })
   })
 
-  app.get('/api/cart/pull', ensureStore, (request, response) => {//TODO: add ensureStore to more places
+  app.get('/api/cart/pull', ensureStore, (request, response) => {
+    //TODO: add ensureStore to more places
     logger.info('Fetching cart')
-    const cartId = request.query.cartId
+    const cartId = `${request.query.cartId}`
 
     const extraParams = {
       include: [
@@ -356,62 +357,63 @@ export default (spreeClient: MultiCurrencySpreeClient, serverOptions: any) => {
       ].join(',')
     }
 
-    spreeClient.cart.show(getTokenOptions(request), extraParams)
-      .then((spreeResponse) => {
-        if (spreeResponse.isSuccess()) {
-          logger.info('Cart fetched')
+    spreeClient.cart.show(getTokenOptions(request), extraParams).then((spreeResponse) => {
+      if (spreeResponse.isSuccess()) {
+        logger.info('Cart fetched')
 
-          const successResponse = spreeResponse.success()
-          const lineItems = findIncludedOfType(successResponse, successResponse.data, 'line_items')
-          const result = lineItems.map((lineItem) => {
-            return getLineItem(successResponse, lineItem, cartId)
-          })
-          response.json({
-            code: 200,
-            result
-          })
-        } else {
-          logger.error([`Could not get Spree cart for cartId = ${cartId}.`, spreeResponse.fail()])
-          response.json({
-            code: 500,
-            result: null
-          })
-        }
-      })
+        const successResponse = spreeResponse.success()
+        const lineItems = findIncludedOfType(successResponse, successResponse.data, 'line_items')
+        const result = lineItems.map((lineItem) => {
+          return getLineItem(successResponse, lineItem, cartId)
+        })
+        response.json({
+          code: 200,
+          result
+        })
+      } else {
+        logger.error([`Could not get Spree cart for cartId = ${cartId}.`, spreeResponse.fail()])
+        response.json({
+          code: 500,
+          result: null
+        })
+      }
+    })
   })
 
   app.get('/api/cart/payment-methods', (request, response) => {
     logger.info('Fetching payment methods')
 
-    spreeClient.checkout.paymentMethods(getTokenOptions(request))
-      .then((spreeResponse) => {
-        if (spreeResponse.isSuccess()) {
-          const paymentMethods = spreeResponse.success().data.map((paymentMethod) => {
-            return {
-              code: paymentMethod.id,
-              title: paymentMethod.attributes.name
-            }
-          })
+    spreeClient.checkout.paymentMethods(getTokenOptions(request)).then((spreeResponse) => {
+      if (spreeResponse.isSuccess()) {
+        const paymentMethods = spreeResponse.success().data.map((paymentMethod) => {
+          return {
+            code: paymentMethod.id,
+            title: paymentMethod.attributes.name
+          }
+        })
 
-          response.json({
-            code: 200,
-            result: paymentMethods
-          })
-        } else {
-          logger.error(['Cannot get payment methods.', spreeResponse.fail()])
-          response.statusCode = 500
-          response.json({
-            code: 500,
-            result: null
-          })
-        }
-      })
+        response.json({
+          code: 200,
+          result: paymentMethods
+        })
+      } else {
+        logger.error(['Cannot get payment methods.', spreeResponse.fail()])
+        response.statusCode = 500
+        response.json({
+          code: 500,
+          result: null
+        })
+      }
+    })
   })
 
   app.post('/api/cart/update', (request, response) => {
-    enum CartOperationType { Add, Update }
+    enum CartOperationType {
+      Add,
+      Update
+    }
 
-    const cartId = request.query.cartId
+    const cartId = `${request.query.cartId}`
     logger.info(`Updating cart for cartId = ${cartId}`)
 
     const { sku: variantSku, qty: quantity, item_id: lineItemId } = request.body.cartItem
@@ -428,30 +430,23 @@ export default (spreeClient: MultiCurrencySpreeClient, serverOptions: any) => {
 
     if (operationType === CartOperationType.Add) {
       logger.info(`Finding variant with sku = ${variantSku}`)
-      cartUpdateRequest = variantFromSku(spreeClient, variantSku)
-        .then((spreeResponse: JsonApiSingleResponse) => {
-          logger.info(`Variant with sku = ${variantSku} found.`)
-          const variant = spreeResponse.data
-          logger.info(`Adding qty = ${quantity} to variant.id = ${variant.id}`)
-          return spreeClient.cart.addItem(
-            getTokenOptions(request),
-            {
-              include: spreeResponseIncludes,
-              quantity,
-              variant_id: variant.id
-            }
-          )
+      cartUpdateRequest = variantFromSku(spreeClient, variantSku).then((spreeResponse: JsonApiSingleResponse) => {
+        logger.info(`Variant with sku = ${variantSku} found.`)
+        const variant = spreeResponse.data
+        logger.info(`Adding qty = ${quantity} to variant.id = ${variant.id}`)
+        return spreeClient.cart.addItem(getTokenOptions(request), {
+          include: spreeResponseIncludes,
+          quantity,
+          variant_id: variant.id
         })
+      })
     } else if (operationType === CartOperationType.Update) {
       logger.info(`Updating line item quantity for lineItemId = ${lineItemId}`)
-      cartUpdateRequest = spreeClient.cart.setQuantity(
-        getTokenOptions(request),
-        {
-          include: spreeResponseIncludes,
-          line_item_id: lineItemId,
-          quantity
-        }
-      )
+      cartUpdateRequest = spreeClient.cart.setQuantity(getTokenOptions(request), {
+        include: spreeResponseIncludes,
+        line_item_id: lineItemId,
+        quantity
+      })
     }
 
     cartUpdateRequest
@@ -493,111 +488,106 @@ export default (spreeClient: MultiCurrencySpreeClient, serverOptions: any) => {
   app.post('/api/cart/delete', (request, response) => {
     const { sku: variantSku, item_id: lineItemId } = request.body.cartItem
 
-    spreeClient.cart.removeItem(getTokenOptions(request), lineItemId)
-      .then((spreeResponse) => {
-        if (spreeResponse.isSuccess()) {
-          logger.info(`Removed item for variant sku = ${variantSku} from cart.`)
-          response.json({
-            code: 200,
-            result: true
-          })
-        } else {
-          logger.error([`Error when removing item from cart.`, spreeResponse.fail()])
-          response.statusCode = 500
-          response.json({
-            code: 500,
-            result: null
-          })
-        }
-      })
+    spreeClient.cart.removeItem(getTokenOptions(request), lineItemId).then((spreeResponse) => {
+      if (spreeResponse.isSuccess()) {
+        logger.info(`Removed item for variant sku = ${variantSku} from cart.`)
+        response.json({
+          code: 200,
+          result: true
+        })
+      } else {
+        logger.error([`Error when removing item from cart.`, spreeResponse.fail()])
+        response.statusCode = 500
+        response.json({
+          code: 500,
+          result: null
+        })
+      }
+    })
   })
 
   app.post('/api/cart/apply-coupon', (request, response) => {
-    const { coupon } = request.query
+    const coupon = `${request.query.coupon}`
 
-    spreeClient.cart.applyCouponCode(getTokenOptions(request), { coupon_code: coupon })
-      .then((spreeResponse) => {
-        if (spreeResponse.isSuccess()) {
-          logger.info(`Add coupon code = ${coupon}.`)
-          response.json({
-            code: 200,
-            result: true
-          })
-        } else {
-          logger.error([`Could not add coupon code.`, spreeResponse.fail()])
-          response.statusCode = 500
-          response.json({
-            code: 500,
-            result: null
-          })
-        }
-      })
+    spreeClient.cart.applyCouponCode(getTokenOptions(request), { coupon_code: coupon }).then((spreeResponse) => {
+      if (spreeResponse.isSuccess()) {
+        logger.info(`Add coupon code = ${coupon}.`)
+        response.json({
+          code: 200,
+          result: true
+        })
+      } else {
+        logger.error([`Could not add coupon code.`, spreeResponse.fail()])
+        response.statusCode = 500
+        response.json({
+          code: 500,
+          result: null
+        })
+      }
+    })
   })
 
   app.post('/api/cart/delete-coupon', (request, response) => {
-    spreeClient.cart.removeCouponCode(getTokenOptions(request))
-      .then((spreeResponse) => {
-        if (spreeResponse.isSuccess()) {
-          logger.info(`Remove coupon code.`)
+    spreeClient.cart.removeCouponCode(getTokenOptions(request)).then((spreeResponse) => {
+      if (spreeResponse.isSuccess()) {
+        logger.info(`Remove coupon code.`)
 
-          response.json({
-            code: 200,
-            result: true
-          })
-        } else {
-          logger.error([`Error removing coupon code.`, spreeResponse.fail()])
-          response.statusCode = 500
-          response.json({
-            code: 500,
-            result: null
-          })
-        }
-      })
+        response.json({
+          code: 200,
+          result: true
+        })
+      } else {
+        logger.error([`Error removing coupon code.`, spreeResponse.fail()])
+        response.statusCode = 500
+        response.json({
+          code: 500,
+          result: null
+        })
+      }
+    })
   })
 
   app.post('/api/cart/shipping-methods', (request, response) => {
     logger.info('Fetching shipping methods.')
     const orderToken = getTokenOptions(request)
-    adjustLastShippingMethodsCallForOrder(
-      orderToken,
-      () => {
-        return spreeClient.checkout.shippingMethods(orderToken)
-      }
-    )
-      .then((shippingMethodsResult: IShippingMethodsResult) => {
-        let handled = false
-        if (shippingMethodsResult.isSuccess()) {
-          const shippingMethodsResponse = shippingMethodsResult.success()
-          if (shippingMethodsResponse.data.length > 0) {
-            // TODO: Support multiple shipments.
-            const shipmentShippingMethods = findIncludedOfType(
-              shippingMethodsResponse, shippingMethodsResponse.data[0], 'shipping_rates'
-            )
-            const shippingMethods = generateStorefrontShippingMethods(shipmentShippingMethods)
-            response.json({
-              code: 200,
-              result: shippingMethods
-            })
-            handled = true
-          }
-        }
-
-        if (!handled) {
-          logger.info('Shipments not available yet. Serving dummy shipping methods.')
-          const dummyShippingMethods = [
-            {
-              amount: 0,
-              carrier_code: '-42',
-              method_code: '-42',
-              method_title: 'Dummy to prevent front-end error'
-            }
-          ]
+    adjustLastShippingMethodsCallForOrder(orderToken, () => {
+      return spreeClient.checkout.shippingMethods(orderToken)
+    }).then((shippingMethodsResult: IShippingMethodsResult) => {
+      let handled = false
+      if (shippingMethodsResult.isSuccess()) {
+        const shippingMethodsResponse = shippingMethodsResult.success()
+        if (shippingMethodsResponse.data.length > 0) {
+          // TODO: Support multiple shipments.
+          const shipmentShippingMethods = findIncludedOfType(
+            shippingMethodsResponse,
+            shippingMethodsResponse.data[0],
+            'shipping_rates'
+          )
+          const shippingMethods = generateStorefrontShippingMethods(shipmentShippingMethods)
           response.json({
             code: 200,
-            result: dummyShippingMethods
+            result: shippingMethods
           })
+          handled = true
         }
-      })
+      }
+
+      if (!handled) {
+        logger.info('Shipments not available yet. Serving dummy shipping methods.')
+        const dummyShippingMethods = [
+          {
+            amount: 0,
+            carrier_code: '-42',
+            method_code: '-42',
+            method_title: 'Dummy to prevent front-end error'
+          }
+        ]
+        response.json({
+          code: 200,
+          result: dummyShippingMethods
+        })
+      }
+    })
   })
 
   app.post('/api/cart/shipping-information', (request, response) => {
@@ -611,7 +601,7 @@ export default (spreeClient: MultiCurrencySpreeClient, serverOptions: any) => {
       .then((shippingResponse) => {
         // If a shipping method doesn't exist, still provide totals, but don't update shipping method in checkout. This
         // is to prevent errors before user fills shipping address (VS calls shipping-information earlier as well).
-        if (shippingResponse.isSuccess() || (shippingResponse.fail() instanceof ShippingMethodMissingError)) {
+        if (shippingResponse.isSuccess() || shippingResponse.fail() instanceof ShippingMethodMissingError) {
           logger.info('Order shipping method updated or update skipped due to issues. Fetching totals.')
           return getTotals(orderToken, cartId)
         }
@@ -639,25 +629,24 @@ export default (spreeClient: MultiCurrencySpreeClient, serverOptions: any) => {
 
     const cartId = request.query.cartId
 
-    getTotals(getTokenOptions(request), cartId)
-      .then((spreeResponse) => {
-        if (spreeResponse.isSuccess()) {
-          response.json({
-            code: 200,
-            result: spreeResponse.success()
-          })
-        } else {
-          logger.error([`Could not get totals for cartId = ${cartId}.`, spreeResponse.fail()])
-          response.json({
-            code: 500,
-            result: null
-          })
-        }
-      })
+    getTotals(getTokenOptions(request), cartId).then((spreeResponse) => {
+      if (spreeResponse.isSuccess()) {
+        response.json({
+          code: 200,
+          result: spreeResponse.success()
+        })
+      } else {
+        logger.error([`Could not get totals for cartId = ${cartId}.`, spreeResponse.fail()])
+        response.json({
+          code: 500,
+          result: null
+        })
+      }
+    })
   })
 
   app.get('/api/stock/check', (request, response) => {
-    const sku = request.query.sku
+    const sku = `${request.query.sku}`
 
     variantFromSku(spreeClient, sku)
       .then((spreeResponse: JsonApiSingleResponse) => {
@@ -687,7 +676,8 @@ export default (spreeClient: MultiCurrencySpreeClient, serverOptions: any) => {
 
     const orderInformation = adaptOrder(request.body)
 
-    spreeClient.checkout.orderUpdate(orderToken, orderInformation)
+    spreeClient.checkout
+      .orderUpdate(orderToken, orderInformation)
       .then((orderAddressResponse): MaybePromiseResult => {
         if (orderAddressResponse.isSuccess()) {
           logger.info('Order addresses updated.')
@@ -742,27 +732,26 @@ export default (spreeClient: MultiCurrencySpreeClient, serverOptions: any) => {
     const orderToken = { orderToken: request.body.cart_id }
     const orderInformation = adaptOrder(request.body)
 
-    spreeClient.checkout.orderUpdate(orderToken, orderInformation)
-      .then((updateResponse) => {
-        if (updateResponse.isSuccess()) {
-          logger.info('Order updated.')
-          const successResponse = updateResponse.success()
-          response.json({
-            code: 200,
-            result: {
-              backendOrderId: successResponse.data.attributes.number,
-              transferedAt: successResponse.data.attributes.updated_at
-            }
-          })
-        } else {
-          logger.error(['Order could not be updated.', updateResponse.fail()])
-          response.statusCode = 500
-          response.json({
-            code: 500,
-            result: spreeErrorToString(updateResponse.fail())
-          })
-        }
-      })
+    spreeClient.checkout.orderUpdate(orderToken, orderInformation).then((updateResponse) => {
+      if (updateResponse.isSuccess()) {
+        logger.info('Order updated.')
+        const successResponse = updateResponse.success()
+        response.json({
+          code: 200,
+          result: {
+            backendOrderId: successResponse.data.attributes.number,
+            transferedAt: successResponse.data.attributes.updated_at
+          }
+        })
+      } else {
+        logger.error(['Order could not be updated.', updateResponse.fail()])
+        response.statusCode = 500
+        response.json({
+          code: 500,
+          result: spreeErrorToString(updateResponse.fail())
+        })
+      }
+    })
   })
 
   app.all('*', (request, response) => {

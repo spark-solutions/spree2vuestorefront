@@ -6,6 +6,5 @@ export const getVariantPrice = getPrice
 
 export const getMasterVariantPrice = getPrice
 
-export const getProductsListIncludes = () => (
+export const getProductsListIncludes = () =>
   'default_variant,images,option_types,product_properties,variants,variants.option_values,taxons'
-)
